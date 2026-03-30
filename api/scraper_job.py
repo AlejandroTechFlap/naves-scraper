@@ -41,6 +41,8 @@ class ScraperStatus(TypedDict):
     current_page: int
     total_new: int
     total_skipped: int
+    needs_session_renewal: bool
+    challenge_waiting: bool
 
 
 _DEFAULT_STATUS: ScraperStatus = {
@@ -52,6 +54,8 @@ _DEFAULT_STATUS: ScraperStatus = {
     "current_page": 0,
     "total_new": 0,
     "total_skipped": 0,
+    "needs_session_renewal": False,
+    "challenge_waiting": False,
 }
 
 
@@ -162,6 +166,14 @@ async def _monitor_proc(proc: asyncio.subprocess.Process) -> None:
             m = re.search(r"(\d+)", line)
             if m:
                 status["total_skipped"] = int(m.group(1))
+        elif "[CAPTCHA_REQUIRED]" in line or "[CAPTCHA_WAITING]" in line:
+            status["challenge_waiting"] = True
+        elif "[CAPTCHA_SOLVED]" in line:
+            status["challenge_waiting"] = False
+        elif "[CAPTCHA_TIMEOUT]" in line:
+            status["challenge_waiting"] = False
+            status["needs_session_renewal"] = True
+            status["last_error"] = line[:200]
         elif any(kw in line.lower() for kw in ("ban", "bloqueado", "f5/incapsula", "kasada", "save_session")):
             status["last_error"] = line[:200]
             status["needs_session_renewal"] = True
@@ -175,6 +187,7 @@ async def _monitor_proc(proc: asyncio.subprocess.Process) -> None:
 
     rc = await proc.wait()
     status = read_status()
+    status["challenge_waiting"] = False
     if rc == 0:
         status["state"] = "idle"
         status["needs_session_renewal"] = False
@@ -218,12 +231,20 @@ async def _monitor_session_proc(proc: asyncio.subprocess.Process) -> None:
             args=(), exc_info=None,
         )
         log_handler.emit(record)
+        # Actualizar estado de espera de login
+        sess = read_session_status()
+        if "[LOGIN_WAITING]" in line:
+            sess["waiting_for_login"] = True
+        elif "Login detectado" in line or "Sesion guardada" in line:
+            sess["waiting_for_login"] = False
+        _write_session_status(sess)
     log_handler.close()
 
     rc = await proc.wait()
     sess = read_session_status()
     sess["state"] = "idle" if rc == 0 else "error"
     sess["finished_at"] = _now()
+    sess["waiting_for_login"] = False
     if rc != 0:
         sess["last_error"] = f"save_session.py terminó con código {rc}"
     _write_session_status(sess)

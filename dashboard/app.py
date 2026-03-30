@@ -98,49 +98,77 @@ ESTADO_TEXTO = {
 }
 
 
-# -- Banner de bloqueo (aparece en todas las paginas) --------------------
+# -- Banner de accion requerida (aparece en todas las paginas) -----------
 
 def mostrar_alerta_sesion():
     """
-    Muestra un aviso prominente si Milanuncios ha bloqueado la sesion.
-    Incluye boton para renovar la sesion directamente.
+    Muestra aviso prominente cuando se requiere accion manual del usuario.
+    Tres estados: captcha activo, sesion bloqueada, renovacion en curso.
     """
     sc = api("GET", "/api/scraper/status", silent=True) or {}
-    if not sc.get("needs_session_renewal"):
-        return
-
     sess = api("GET", "/api/session/status", silent=True) or {}
     sess_state = sess.get("state", "idle")
 
-    st.error(
-        "**Sesion bloqueada por Milanuncios**\n\n"
-        "El scraper ha detectado un bloqueo (F5/Incapsula o Kasada). "
-        "Es necesario renovar la sesion abriendo Chrome y completando el acceso manualmente.",
-        icon=None,
-    )
+    # Estado 1: captcha interactivo — mas urgente, mostrar primero
+    if sc.get("challenge_waiting"):
+        st.warning(
+            "**Captcha detectado en Chrome**\n\n"
+            "El scraper ha pausado y esta esperando que resuelvas el captcha. "
+            "Abre la ventana de Chrome en este equipo y completa el desafio. "
+            "El scraper continuara automaticamente cuando lo resuelvas.\n\n"
+            "El scraper esperara hasta 10 minutos."
+        )
+        if st.button("Actualizar estado"):
+            st.rerun()
+        st.divider()
+        return
+
+    # Estado 2: sesion bloqueada, requiere renovacion
+    if not sc.get("needs_session_renewal"):
+        return
 
     if sess_state == "running":
-        st.warning(
-            "La renovacion de sesion esta en curso. "
-            "Abre Chrome en el escritorio del servidor y completa el acceso."
-        )
+        # Renovacion en curso — mostrar instrucciones segun sub-estado
+        if sess.get("waiting_for_login"):
+            st.warning(
+                "**Chrome esta abierto — inicia sesion ahora**\n\n"
+                "Se ha abierto Chrome en este equipo. Por favor:\n\n"
+                "1. Busca la ventana de Chrome en la barra de tareas\n"
+                "2. Si aparece un captcha, resuelvelo primero\n"
+                "3. Inicia sesion con tu cuenta de Milanuncios\n"
+                "4. Navega a **Mis Anuncios** — la sesion se guardara automaticamente"
+            )
+        else:
+            st.info(
+                "**Renovacion de sesion en curso...**\n\n"
+                "Chrome se esta iniciando. En unos segundos aparecera la ventana para que inicies sesion."
+            )
         if st.button("Actualizar estado de la sesion"):
             st.rerun()
     else:
+        # Sesion bloqueada, boton para iniciar renovacion
+        st.error(
+            "**Sesion bloqueada por Milanuncios**\n\n"
+            "El scraper ha detectado un bloqueo. Es necesario renovar la sesion "
+            "iniciando sesion manualmente en Chrome."
+        )
         scraper_state = sc.get("state", "idle")
         if scraper_state == "running":
-            st.warning("⚠️ **ATENCIÓN:** Debes detener el scraper en el panel de control antes de poder renovar la sesión.")
-            st.button("Renovar sesion ahora", type="primary", disabled=True)
+            st.warning("**ATENCION:** Detén el scraper antes de renovar la sesion.")
+            st.button("Abrir Chrome para iniciar sesion", type="primary", disabled=True)
         else:
+            st.markdown(
+                "**Pasos:**  \n"
+                "1. Haz clic en el boton de abajo  \n"
+                "2. Se abrira Chrome — inicia sesion en Milanuncios  \n"
+                "3. Navega a **Mis Anuncios** — la sesion se guardara automaticamente"
+            )
             col1, col2 = st.columns([2, 3])
             with col1:
-                if st.button("Renovar sesion ahora", type="primary"):
+                if st.button("Abrir Chrome para iniciar sesion", type="primary"):
                     r = api("POST", "/api/session/renew")
                     if r:
-                        st.success(
-                            "Chrome se ha abierto. "
-                            "Ve al escritorio del servidor y completa el acceso a Milanuncios."
-                        )
+                        st.success("Chrome se ha abierto. Busca la ventana y completa el acceso.")
                         time.sleep(1)
                         st.rerun()
             with col2:
@@ -173,7 +201,9 @@ def page_resumen():
 
     with col_izq:
         st.subheader("Estado del scraper")
-        if state == "running":
+        if sc.get("challenge_waiting"):
+            st.warning("Captcha activo — resuelve en Chrome para continuar")
+        elif state == "running":
             st.info(
                 f"Pagina actual: {sc.get('current_page', '?')}  \n"
                 f"Anuncios nuevos: {sc.get('total_new', 0)}  \n"
@@ -197,7 +227,7 @@ def page_resumen():
         else:
             st.warning("Aun no se ha sincronizado ningun anuncio")
 
-    if state == "running":
+    if state == "running" or sc.get("challenge_waiting"):
         time.sleep(5)
         st.rerun()
 
@@ -212,7 +242,15 @@ def page_control():
 
     st.subheader("Estado actual")
     estado_texto = ESTADO_TEXTO.get(state, state)
-    if state == "running":
+    if status.get("challenge_waiting"):
+        st.warning(
+            f"Estado: **En ejecucion — Captcha activo**  \n"
+            f"Pagina: {status.get('current_page', '?')} | "
+            f"Nuevos: {status.get('total_new', 0)} | "
+            f"Saltados: {status.get('total_skipped', 0)}  \n"
+            "Resuelve el captcha en la ventana de Chrome para que el scraper continue."
+        )
+    elif state == "running":
         st.info(
             f"Estado: **{estado_texto}**  \n"
             f"Pagina: {status.get('current_page', '?')} | "
@@ -539,20 +577,20 @@ def check_session_notifications():
     """Comprueba cambios en el estado de la sesión y emite notificaciones flotantes (toasts)."""
     sess = api("GET", "/api/session/status", silent=True) or {}
     current_state = sess.get("state", "idle")
-    
+
     # Comprobar si hay un estado anterior guardado en la sesión de Streamlit
     if "prev_sess_state" in st.session_state:
         prev_state = st.session_state["prev_sess_state"]
-        
+
         # Transición: Renovación exitosa
         if prev_state == "running" and current_state == "idle":
-            st.toast("✅ Sesión de Milanuncios renovada exitosamente", icon="🎉")
-        
+            st.toast("Sesion de Milanuncios renovada correctamente")
+
         # Transición: Error o navegador cerrado
         elif prev_state == "running" and current_state == "error":
             error_msg = sess.get("last_error", "Navegador cerrado o error inesperado")
-            st.toast(f"❌ Fallo al renovar sesión: {error_msg}", icon="🚨")
-            
+            st.toast(f"Fallo al renovar sesion: {error_msg}")
+
     # Actualizar estado para la próxima recarga
     st.session_state["prev_sess_state"] = current_state
 

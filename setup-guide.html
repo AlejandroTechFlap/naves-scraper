@@ -26,7 +26,6 @@
       --red: #f87171;
       --red-dim: rgba(248,113,113,0.12);
       --code-bg: #0d0d24;
-      --step-size: 28px;
     }
 
     html { scroll-behavior: smooth; }
@@ -43,121 +42,65 @@
 
     /* ── Orbs ── */
     .orb {
-      position: fixed;
-      border-radius: 50%;
-      filter: blur(120px);
-      pointer-events: none;
-      z-index: 0;
+      position: fixed; border-radius: 50%;
+      filter: blur(120px); pointer-events: none; z-index: 0;
     }
-    .orb-1 { width: 600px; height: 600px; background: rgba(108,99,255,0.12); top: -200px; right: -150px; }
-    .orb-2 { width: 500px; height: 500px; background: rgba(34,211,126,0.07); bottom: -150px; left: -100px; }
+    .orb-1 { width: 600px; height: 600px; background: rgba(108,99,255,0.10); top: -200px; right: -150px; }
+    .orb-2 { width: 500px; height: 500px; background: rgba(34,211,126,0.06); bottom: -150px; left: -100px; }
 
     /* ── Layout ── */
-    .page { position: relative; z-index: 1; max-width: 760px; margin: 0 auto; padding: 48px 24px 80px; }
-
-    /* ── Header ── */
-    header { margin-bottom: 52px; }
-    .logo { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
-    .logo-icon {
-      width: 40px; height: 40px;
-      background: linear-gradient(135deg, var(--accent), #9b8fff);
-      border-radius: 10px;
-      display: flex; align-items: center; justify-content: center;
-    }
-    .logo-icon .material-symbols-outlined { font-size: 22px; color: #fff; }
-    .logo-name { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; color: #fff; }
-    .logo-name span { color: var(--text-muted); font-weight: 400; }
-
-    header h1 { font-size: 32px; font-weight: 700; letter-spacing: -0.03em; color: #fff; line-height: 1.2; margin-bottom: 10px; }
-    header p { color: var(--text-muted); font-size: 15px; max-width: 540px; }
-
-    .badge {
-      display: inline-flex; align-items: center; gap: 5px;
-      padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 500;
-      background: var(--accent-dim); color: #a99fff; border: 1px solid rgba(108,99,255,0.25);
-      margin-top: 14px;
-    }
-    .badge .material-symbols-outlined { font-size: 13px; }
+    .page { position: relative; z-index: 1; max-width: 720px; margin: 0 auto; padding: 48px 20px 80px; }
 
     /* ── Material Symbols ── */
     .material-symbols-outlined {
       font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 20;
-      font-size: 18px;
-      line-height: 1;
-      vertical-align: middle;
-      user-select: none;
+      font-size: 18px; line-height: 1; vertical-align: middle; user-select: none;
     }
+
+    /* ── Header ── */
+    header { margin-bottom: 48px; }
+    .logo { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+    .logo-icon {
+      width: 38px; height: 38px;
+      background: linear-gradient(135deg, var(--accent), #9b8fff);
+      border-radius: 10px; display: flex; align-items: center; justify-content: center;
+    }
+    .logo-icon .material-symbols-outlined { font-size: 20px; color: #fff; }
+    .logo-name { font-size: 16px; font-weight: 600; color: #fff; }
+    .logo-name span { color: var(--text-muted); font-weight: 400; }
+
+    header h1 { font-size: 30px; font-weight: 700; letter-spacing: -0.03em; color: #fff; line-height: 1.2; margin-bottom: 8px; }
+    header p { color: var(--text-muted); font-size: 14px; max-width: 500px; }
+
+    .badges { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+    .badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 500;
+      background: var(--accent-dim); color: #a99fff; border: 1px solid rgba(108,99,255,0.25);
+    }
+    .badge .material-symbols-outlined { font-size: 13px; }
 
     /* ── Section title ── */
     .section-title {
       font-size: 11px; font-weight: 600; letter-spacing: 0.1em;
       text-transform: uppercase; color: var(--text-muted);
-      margin: 44px 0 16px;
+      margin: 40px 0 14px;
     }
 
-    /* ── Steps ── */
-    .steps { display: flex; flex-direction: column; gap: 12px; }
-
-    .step {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      overflow: hidden;
-      transition: border-color 0.2s;
+    /* ── Inline code ── */
+    code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px; background: rgba(255,255,255,0.07); color: #c9c5ff;
+      padding: 1px 6px; border-radius: 4px;
     }
-    .step:hover { border-color: var(--border-hover); }
-
-    .step-header {
-      display: flex; align-items: flex-start; gap: 14px;
-      padding: 20px 22px;
-      cursor: pointer;
-      user-select: none;
-    }
-
-    .step-num {
-      width: var(--step-size); height: var(--step-size);
-      min-width: var(--step-size);
-      border-radius: 8px;
-      background: var(--accent-dim);
-      border: 1px solid rgba(108,99,255,0.3);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 13px; font-weight: 700; color: #a99fff;
-      margin-top: 1px;
-    }
-
-    .step-meta { flex: 1; }
-    .step-title { font-size: 15px; font-weight: 600; color: #fff; line-height: 1.3; margin-bottom: 2px; }
-    .step-desc { font-size: 13px; color: var(--text-muted); }
-
-    .step-chevron {
-      color: var(--text-muted);
-      transition: transform 0.25s;
-      margin-top: 2px;
-    }
-    .step.open .step-chevron { transform: rotate(180deg); }
-
-    .step-body {
-      display: none;
-      padding: 0 22px 22px;
-      border-top: 1px solid var(--border);
-    }
-    .step.open .step-body { display: block; }
-
-    .step-body > *:first-child { margin-top: 16px; }
-
-    /* ── Prose inside steps ── */
-    .step-body p { color: var(--text-muted); font-size: 14px; margin-bottom: 12px; }
-    .step-body p:last-child { margin-bottom: 0; }
-    .step-body strong { color: var(--text); font-weight: 500; }
 
     /* ── Alerts ── */
     .alert {
       display: flex; gap: 10px; align-items: flex-start;
-      padding: 12px 14px; border-radius: 10px;
-      font-size: 13px; line-height: 1.5;
-      margin-bottom: 14px;
+      padding: 11px 13px; border-radius: 10px;
+      font-size: 13px; line-height: 1.5; margin-bottom: 12px;
     }
-    .alert .material-symbols-outlined { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+    .alert .material-symbols-outlined { font-size: 15px; flex-shrink: 0; margin-top: 1px; }
     .alert.info    { background: var(--accent-dim); border: 1px solid rgba(108,99,255,0.2); color: #c4bfff; }
     .alert.info    .material-symbols-outlined { color: #9b8fff; }
     .alert.warning { background: var(--amber-dim);  border: 1px solid rgba(245,158,11,0.2);  color: #fcd97a; }
@@ -165,68 +108,150 @@
     .alert.success { background: var(--green-dim);  border: 1px solid rgba(34,211,126,0.2);  color: #86efb4; }
     .alert.success .material-symbols-outlined { color: var(--green); }
 
-    /* ── Code blocks ── */
+    /* ── Code block — header layout ── */
     .code-block {
-      position: relative;
       background: var(--code-bg);
       border: 1px solid var(--border);
       border-radius: 10px;
-      margin-bottom: 14px;
+      margin-bottom: 12px;
       overflow: hidden;
     }
-    .code-label {
-      padding: 8px 14px 0;
-      font-size: 11px; font-weight: 500;
-      color: var(--text-muted);
-      font-family: 'JetBrains Mono', monospace;
-      letter-spacing: 0.04em;
+    .code-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 6px 0 14px;
+      border-bottom: 1px solid var(--border);
+      min-height: 36px; gap: 8px;
     }
-    .code-block pre {
-      padding: 10px 14px 14px;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 13px; line-height: 1.65;
-      color: #c9c5ff;
-      overflow-x: auto;
-      white-space: pre;
+    .code-label {
+      font-size: 11px; font-weight: 500;
+      color: var(--text-muted); font-family: 'JetBrains Mono', monospace;
+      letter-spacing: 0.04em; white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis;
     }
     .copy-btn {
-      position: absolute; top: 10px; right: 10px;
-      display: flex; align-items: center; gap: 5px;
+      display: flex; align-items: center; gap: 4px; flex-shrink: 0;
       padding: 4px 10px;
-      background: rgba(255,255,255,0.07);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 12px; font-weight: 500; color: var(--text-muted);
-      transition: background 0.15s, color 0.15s;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--border); border-radius: 6px;
+      cursor: pointer; font-size: 12px; font-weight: 500; color: var(--text-muted);
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
       font-family: 'Inter', sans-serif;
     }
-    .copy-btn:hover { background: rgba(255,255,255,0.12); color: var(--text); }
-    .copy-btn.copied { color: var(--green); border-color: rgba(34,211,126,0.3); }
+    .copy-btn:hover { background: rgba(255,255,255,0.11); color: var(--text); border-color: var(--border-hover); }
+    .copy-btn.copied { color: var(--green); border-color: rgba(34,211,126,0.3); background: var(--green-dim); }
     .copy-btn .material-symbols-outlined { font-size: 13px; }
 
-    /* ── Inline code ── */
-    code {
+    .code-block pre {
+      padding: 12px 14px;
       font-family: 'JetBrains Mono', monospace;
-      font-size: 12.5px;
-      background: rgba(255,255,255,0.07);
-      color: #c9c5ff;
-      padding: 1px 6px; border-radius: 4px;
+      font-size: 13px; line-height: 1.7; color: #c9c5ff;
+      overflow-x: auto; white-space: pre;
+      /* thin, subtle scrollbar */
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255,255,255,0.12) transparent;
+    }
+    .code-block pre::-webkit-scrollbar { height: 4px; }
+    .code-block pre::-webkit-scrollbar-track { background: transparent; }
+    .code-block pre::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); border-radius: 2px; }
+
+    /* ── Checklist ── */
+    .checklist { list-style: none; display: flex; flex-direction: column; gap: 7px; margin: 12px 0; }
+    .checklist li { display: flex; align-items: flex-start; gap: 9px; font-size: 14px; color: var(--text-muted); }
+    .checklist li .material-symbols-outlined { font-size: 16px; color: var(--green); flex-shrink: 0; margin-top: 2px; }
+
+    /* ── Flow (main install steps) ── */
+    .flow { display: flex; flex-direction: column; }
+
+    .flow-step { display: flex; gap: 0; position: relative; }
+
+    /* vertical connector */
+    .flow-step:not(:last-child) .flow-spine::after {
+      content: '';
+      position: absolute; left: 50%; top: 44px; bottom: 0;
+      width: 1px; background: var(--border);
+      transform: translateX(-50%);
     }
 
+    .flow-spine {
+      width: 52px; min-width: 52px;
+      display: flex; flex-direction: column; align-items: center;
+      padding-top: 16px; position: relative;
+    }
+
+    .flow-num {
+      width: 28px; height: 28px;
+      border-radius: 8px;
+      background: var(--accent-dim);
+      border: 1px solid rgba(108,99,255,0.3);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700; color: #a99fff;
+      position: relative; z-index: 1;
+      flex-shrink: 0;
+    }
+    .flow-num.primary {
+      background: var(--accent); border-color: var(--accent); color: #fff;
+      box-shadow: 0 0 18px rgba(108,99,255,0.4);
+    }
+
+    .flow-body {
+      flex: 1; padding: 14px 0 26px 8px; min-width: 0;
+    }
+
+    .flow-title {
+      font-size: 15px; font-weight: 600; color: #fff;
+      line-height: 1.3; margin-bottom: 3px;
+    }
+    .flow-title.primary { color: #d4cfff; }
+    .flow-desc { font-size: 13px; color: var(--text-muted); margin-bottom: 14px; }
+    .flow-note { font-size: 12px; color: var(--text-muted); margin-top: 8px; line-height: 1.5; }
+
+    /* ── Expandable sections ── */
+    .steps { display: flex; flex-direction: column; gap: 8px; }
+
+    .step {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; overflow: hidden; transition: border-color 0.2s;
+    }
+    .step:hover { border-color: var(--border-hover); }
+
+    .step-header {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 16px; cursor: pointer; user-select: none;
+    }
+    .step-icon {
+      width: 26px; height: 26px; min-width: 26px;
+      border-radius: 7px; background: var(--accent-dim);
+      border: 1px solid rgba(108,99,255,0.3);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .step-meta { flex: 1; }
+    .step-title { font-size: 14px; font-weight: 600; color: #fff; line-height: 1.3; margin-bottom: 1px; }
+    .step-desc { font-size: 12px; color: var(--text-muted); }
+    .step-chevron { color: var(--text-muted); transition: transform 0.25s; margin-left: auto; flex-shrink: 0; }
+    .step.open .step-chevron { transform: rotate(180deg); }
+
+    .step-body {
+      display: none; padding: 0 16px 16px;
+      border-top: 1px solid var(--border);
+    }
+    .step.open .step-body { display: block; }
+    .step-body > *:first-child { margin-top: 14px; }
+    .step-body p { color: var(--text-muted); font-size: 13px; margin-bottom: 10px; }
+    .step-body p:last-child { margin-bottom: 0; }
+    .step-body strong { color: var(--text); font-weight: 500; }
+
     /* ── Env vars table ── */
-    .env-table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+    .env-table { width: 100%; border-collapse: collapse; margin: 10px 0 14px; font-size: 13px; }
     .env-table th {
-      text-align: left; padding: 8px 12px;
+      text-align: left; padding: 7px 10px;
       font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
       text-transform: uppercase; color: var(--text-muted);
       border-bottom: 1px solid var(--border);
     }
-    .env-table td { padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: top; }
+    .env-table td { padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: top; }
     .env-table tr:last-child td { border-bottom: none; }
-    .env-table td:first-child { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #c9c5ff; white-space: nowrap; }
+    .env-table td:first-child { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: #c9c5ff; white-space: nowrap; }
     .env-table td:last-child { color: var(--text-muted); }
-
     .req-badge {
       display: inline-block; padding: 1px 7px; border-radius: 4px;
       font-size: 11px; font-weight: 600;
@@ -240,13 +265,8 @@
       border: 1px solid var(--border);
     }
 
-    /* ── Checklist ── */
-    .checklist { list-style: none; display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
-    .checklist li { display: flex; align-items: flex-start; gap: 9px; font-size: 14px; color: var(--text-muted); }
-    .checklist li .material-symbols-outlined { font-size: 16px; color: var(--green); flex-shrink: 0; margin-top: 1px; }
-
     /* ── Footer ── */
-    footer { margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--border); text-align: center; }
+    footer { margin-top: 56px; padding-top: 22px; border-top: 1px solid var(--border); text-align: center; }
     footer p { font-size: 13px; color: var(--text-muted); }
     footer a { color: #9b8fff; text-decoration: none; }
     footer a:hover { text-decoration: underline; }
@@ -258,7 +278,7 @@
 
   <div class="page">
 
-    <!-- Header -->
+    <!-- ── Header ── -->
     <header>
       <div class="logo">
         <div class="logo-icon">
@@ -267,146 +287,109 @@
         <div class="logo-name">Naves Scraper <span>/ Setup</span></div>
       </div>
       <h1>Guía de instalación</h1>
-      <p>Configura el scraper de naves industriales en tu Mac en menos de 10 minutos.</p>
-      <div class="badge">
-        <span class="material-symbols-outlined">laptop_mac</span>
-        macOS · Python 3.11+
+      <p>Configura el scraper de naves industriales en menos de 10 minutos. Al finalizar tendrás el dashboard activo y el cron diario funcionando.</p>
+      <div class="badges">
+        <div class="badge"><span class="material-symbols-outlined">laptop_mac</span>macOS 12+</div>
+        <div class="badge"><span class="material-symbols-outlined">terminal</span>Ubuntu 22+</div>
+        <div class="badge"><span class="material-symbols-outlined">code</span>Python 3.11+</div>
       </div>
     </header>
 
-    <!-- Prerequisites -->
+    <!-- ── Prerequisites ── -->
     <div class="section-title">Antes de empezar</div>
     <ul class="checklist">
       <li>
         <span class="material-symbols-outlined">check_circle</span>
-        macOS 12 Monterey o superior
+        Cuenta en Webflow con acceso a la API — necesitarás el token y el Collection ID
       </li>
       <li>
         <span class="material-symbols-outlined">check_circle</span>
-        Homebrew instalado — <code>/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"</code>
+        Cuenta en MilAnuncios — para el login manual de sesión (solo la primera vez)
       </li>
       <li>
         <span class="material-symbols-outlined">check_circle</span>
-        Cuenta en Webflow con acceso a la API (token + Collection ID)
-      </li>
-      <li>
-        <span class="material-symbols-outlined">check_circle</span>
-        Cuenta en MilAnuncios (para el login manual de sesión)
+        Conexión a internet activa — el instalador descarga todo lo necesario
       </li>
     </ul>
 
-    <!-- Steps -->
-    <div class="section-title">Pasos de instalación</div>
-    <div class="steps">
+    <!-- ── MAIN FLOW ── -->
+    <div class="section-title">Instalación completa — 4 pasos</div>
+    <div class="flow">
 
-      <!-- Step 1 -->
-      <div class="step open">
-        <div class="step-header" onclick="toggleStep(this)">
-          <div class="step-num">1</div>
-          <div class="step-meta">
-            <div class="step-title">Instalar Python 3.11+</div>
-            <div class="step-desc">Verificar o instalar via Homebrew</div>
-          </div>
-          <span class="material-symbols-outlined step-chevron">expand_more</span>
-        </div>
-        <div class="step-body">
-          <p>Comprueba si ya tienes Python 3.11 o superior:</p>
+      <!-- 1 · Dependencias -->
+      <div class="flow-step">
+        <div class="flow-spine"><div class="flow-num">1</div></div>
+        <div class="flow-body">
+          <div class="flow-title">Instalar git y Python</div>
+          <div class="flow-desc">Elige tu sistema operativo</div>
           <div class="code-block">
-            <div class="code-label">terminal</div>
-            <pre>python3 --version</pre>
-            <button class="copy-btn" onclick="copyCode(this, 'python3 --version')">
-              <span class="material-symbols-outlined">content_copy</span>Copiar
-            </button>
+            <div class="code-header">
+              <span class="code-label">macOS — Homebrew + git + Python 3.12</span>
+              <button class="copy-btn" onclick="copyFromPre(this)">
+                <span class="material-symbols-outlined">content_copy</span>Copiar
+              </button>
+            </div>
+            <pre>/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+brew install git python@3.12</pre>
           </div>
-          <p>Si la versión es menor a 3.11, instala con Homebrew:</p>
           <div class="code-block">
-            <div class="code-label">terminal</div>
-            <pre>brew install python@3.12</pre>
-            <button class="copy-btn" onclick="copyCode(this, 'brew install python@3.12')">
-              <span class="material-symbols-outlined">content_copy</span>Copiar
-            </button>
+            <div class="code-header">
+              <span class="code-label">Ubuntu / Debian</span>
+              <button class="copy-btn" onclick="copyFromPre(this)">
+                <span class="material-symbols-outlined">content_copy</span>Copiar
+              </button>
+            </div>
+            <pre>sudo apt update && sudo apt install -y git python3.12 python3.12-venv</pre>
           </div>
         </div>
       </div>
 
-      <!-- Step 2 -->
-      <div class="step">
-        <div class="step-header" onclick="toggleStep(this)">
-          <div class="step-num">2</div>
-          <div class="step-meta">
-            <div class="step-title">Clonar el repositorio</div>
-            <div class="step-desc">Descarga el código fuente</div>
-          </div>
-          <span class="material-symbols-outlined step-chevron">expand_more</span>
-        </div>
-        <div class="step-body">
+      <!-- 2 · Clonar e instalar -->
+      <div class="flow-step">
+        <div class="flow-spine"><div class="flow-num">2</div></div>
+        <div class="flow-body">
+          <div class="flow-title">Clonar el repositorio e instalar</div>
+          <div class="flow-desc">El instalador configura todo: venv, dependencias y <code>.env</code></div>
           <div class="code-block">
-            <div class="code-label">terminal</div>
-            <pre>git clone &lt;URL_DEL_REPO&gt; naves-scraper
-cd naves-scraper</pre>
-            <button class="copy-btn" onclick="copyCode(this, 'git clone <URL_DEL_REPO> naves-scraper\ncd naves-scraper')">
-              <span class="material-symbols-outlined">content_copy</span>Copiar
-            </button>
+            <div class="code-header">
+              <span class="code-label">terminal</span>
+              <button class="copy-btn" onclick="copyFromPre(this)">
+                <span class="material-symbols-outlined">content_copy</span>Copiar
+              </button>
+            </div>
+            <pre>git clone https://github.com/AlejandroTechFlap/naves-scraper.git naves-scraper
+cd naves-scraper
+bash install.sh</pre>
           </div>
+          <div class="flow-note">Al finalizar, el script pregunta si quieres arrancar los servicios ahora. Responde <strong>N</strong> y continúa con los pasos siguientes.</div>
         </div>
       </div>
 
-      <!-- Step 3 -->
-      <div class="step">
-        <div class="step-header" onclick="toggleStep(this)">
-          <div class="step-num">3</div>
-          <div class="step-meta">
-            <div class="step-title">Ejecutar el instalador</div>
-            <div class="step-desc">Un comando configura todo el entorno</div>
-          </div>
-          <span class="material-symbols-outlined step-chevron">expand_more</span>
-        </div>
-        <div class="step-body">
-          <div class="alert info">
-            <span class="material-symbols-outlined">info</span>
-            El script es idempotente: puedes ejecutarlo varias veces sin problema. Crea el entorno virtual, instala dependencias, genera <code>.env</code> y crea los directorios necesarios.
-          </div>
-          <div class="code-block">
-            <div class="code-label">terminal</div>
-            <pre>bash install.sh</pre>
-            <button class="copy-btn" onclick="copyCode(this, 'bash install.sh')">
-              <span class="material-symbols-outlined">content_copy</span>Copiar
-            </button>
-          </div>
-          <p>Al finalizar verás las instrucciones de los siguientes pasos y la opción de arrancar los servicios en segundo plano.</p>
-        </div>
-      </div>
+      <!-- 3 · Credenciales -->
+      <div class="flow-step">
+        <div class="flow-spine"><div class="flow-num">3</div></div>
+        <div class="flow-body">
+          <div class="flow-title">Configurar credenciales y sesión</div>
+          <div class="flow-desc">Edita <code>.env</code> con tus claves y guarda las cookies de MilAnuncios</div>
 
-      <!-- Step 4 -->
-      <div class="step">
-        <div class="step-header" onclick="toggleStep(this)">
-          <div class="step-num">4</div>
-          <div class="step-meta">
-            <div class="step-title">Configurar las variables de entorno</div>
-            <div class="step-desc">Editar <code>.env</code> con tus credenciales</div>
-          </div>
-          <span class="material-symbols-outlined step-chevron">expand_more</span>
-        </div>
-        <div class="step-body">
           <div class="alert warning">
             <span class="material-symbols-outlined">warning</span>
-            El archivo <code>.env</code> contiene secretos. Nunca lo subas a Git — ya está en <code>.gitignore</code>.
+            <span><code>.env</code> contiene secretos — nunca lo subas a Git. Ya está en <code>.gitignore</code>.</span>
           </div>
+
           <div class="code-block">
-            <div class="code-label">terminal</div>
+            <div class="code-header">
+              <span class="code-label">paso 3a — editar credenciales</span>
+              <button class="copy-btn" onclick="copyCode(this, 'nano .env')">
+                <span class="material-symbols-outlined">content_copy</span>Copiar
+              </button>
+            </div>
             <pre>nano .env</pre>
-            <button class="copy-btn" onclick="copyCode(this, 'nano .env')">
-              <span class="material-symbols-outlined">content_copy</span>Copiar
-            </button>
           </div>
 
           <table class="env-table">
             <thead>
-              <tr>
-                <th>Variable</th>
-                <th>Tipo</th>
-                <th>Descripción</th>
-              </tr>
+              <tr><th>Variable</th><th>Tipo</th><th>Descripción</th></tr>
             </thead>
             <tbody>
               <tr>
@@ -422,7 +405,7 @@ cd naves-scraper</pre>
               <tr>
                 <td>DASHBOARD_PASSWORD</td>
                 <td><span class="req-badge">Requerida</span></td>
-                <td>Contraseña para acceder al dashboard Streamlit</td>
+                <td>Contraseña para acceder al dashboard</td>
               </tr>
               <tr>
                 <td>API_SECRET_KEY</td>
@@ -430,182 +413,193 @@ cd naves-scraper</pre>
                 <td>Generada automáticamente por <code>install.sh</code></td>
               </tr>
               <tr>
-                <td>DB_PATH</td>
-                <td><span class="opt-badge">Opcional</span></td>
-                <td>Ruta al archivo SQLite. Por defecto: <code>naves.db</code></td>
-              </tr>
-              <tr>
                 <td>MAX_PAGES</td>
                 <td><span class="opt-badge">Opcional</span></td>
-                <td>Límite de páginas a scrapear. <code>0</code> = ilimitado</td>
+                <td>Páginas a scrapear. <code>0</code> = ilimitado</td>
               </tr>
               <tr>
                 <td>MIN_SURFACE_M2</td>
                 <td><span class="opt-badge">Opcional</span></td>
-                <td>Filtro mínimo de superficie en m². Por defecto: <code>1000</code></td>
-              </tr>
-              <tr>
-                <td>DOWNLOAD_IMAGES</td>
-                <td><span class="opt-badge">Opcional</span></td>
-                <td>Descargar imágenes localmente. Por defecto: <code>true</code></td>
+                <td>Superficie mínima en m². Por defecto: <code>1000</code></td>
               </tr>
             </tbody>
           </table>
+
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-label">paso 3b — guardar sesión MilAnuncios (login manual)</span>
+              <button class="copy-btn" onclick="copyFromPre(this)">
+                <span class="material-symbols-outlined">content_copy</span>Copiar
+              </button>
+            </div>
+            <pre>source venv/bin/activate && python save_session.py</pre>
+          </div>
+          <div class="flow-note">Se abrirá Chrome. Inicia sesión en MilAnuncios y pulsa <strong>Enter</strong> en el terminal para guardar las cookies.</div>
         </div>
       </div>
 
-      <!-- Step 5 -->
+      <!-- 4 · Arrancar — PRIMARY -->
+      <div class="flow-step">
+        <div class="flow-spine"><div class="flow-num primary">4</div></div>
+        <div class="flow-body">
+          <div class="flow-title primary">Arrancar API + Dashboard</div>
+          <div class="flow-desc">El cron diario (6:00 Madrid) se activa automáticamente con la API</div>
+          <div class="code-block" style="border-color: rgba(108,99,255,0.3);">
+            <div class="code-header" style="border-color: rgba(108,99,255,0.2);">
+              <span class="code-label">terminal — background, sobrevive al cierre del terminal</span>
+              <button class="copy-btn" onclick="copyFromPre(this)">
+                <span class="material-symbols-outlined">content_copy</span>Copiar
+              </button>
+            </div>
+            <pre>nohup bash run_api.sh > logs/api.log 2>&1 &
+echo $! > logs/api.pid
+nohup bash run_dashboard.sh > logs/dashboard.log 2>&1 &
+echo $! > logs/dashboard.pid</pre>
+          </div>
+          <div class="alert success">
+            <span class="material-symbols-outlined">check_circle</span>
+            <span>
+              Dashboard: <strong>http://localhost:8501</strong> — usa la contraseña de <code>DASHBOARD_PASSWORD</code><br>
+              API health: <strong>http://localhost:8000/health</strong> — debe devolver <code>{"status":"ok"}</code>
+            </span>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /flow -->
+
+
+    <!-- ── CRON ── -->
+    <div class="section-title">Cron automático</div>
+    <div class="steps">
+      <div class="step open">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-icon">
+            <span class="material-symbols-outlined" style="font-size:14px;">schedule</span>
+          </div>
+          <div class="step-meta">
+            <div class="step-title">Programación automática del scraper</div>
+            <div class="step-desc">Se activa solo al arrancar la API — sin configuración extra</div>
+          </div>
+          <span class="material-symbols-outlined step-chevron">expand_more</span>
+        </div>
+        <div class="step-body">
+          <div class="alert success">
+            <span class="material-symbols-outlined">check_circle</span>
+            Por defecto el scraper corre todos los días a las <strong>6:00 (Europe/Madrid)</strong>. El horario persiste aunque reinicies la API.
+          </div>
+          <p>Ver el horario configurado:</p>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-label">GET /api/cron</span>
+              <button class="copy-btn" onclick="copyFromPre(this)">
+                <span class="material-symbols-outlined">content_copy</span>Copiar
+              </button>
+            </div>
+            <pre>curl http://localhost:8000/api/cron \
+  -H "x-api-key: TU_API_SECRET_KEY"</pre>
+          </div>
+          <p>Cambiar el horario (ejemplo: 8:30):</p>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-label">PUT /api/cron</span>
+              <button class="copy-btn" onclick="copyFromPre(this)">
+                <span class="material-symbols-outlined">content_copy</span>Copiar
+              </button>
+            </div>
+            <pre>curl -X PUT http://localhost:8000/api/cron \
+  -H "x-api-key: TU_API_SECRET_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"hour": 8, "minute": 30}'</pre>
+          </div>
+          <p>Lanzar el scraper manualmente ahora:</p>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-label">POST /api/scraper/run</span>
+              <button class="copy-btn" onclick="copyFromPre(this)">
+                <span class="material-symbols-outlined">content_copy</span>Copiar
+              </button>
+            </div>
+            <pre>curl -X POST http://localhost:8000/api/scraper/run \
+  -H "x-api-key: TU_API_SECRET_KEY"</pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ── MAINTENANCE ── -->
+    <div class="section-title">Mantenimiento</div>
+    <div class="steps">
+
       <div class="step">
         <div class="step-header" onclick="toggleStep(this)">
-          <div class="step-num">5</div>
+          <div class="step-icon">
+            <span class="material-symbols-outlined" style="font-size:14px;">refresh</span>
+          </div>
           <div class="step-meta">
-            <div class="step-title">Configurar la sesión de MilAnuncios</div>
-            <div class="step-desc">Login manual en Chrome (~2 min)</div>
+            <div class="step-title">Renovar sesión expirada</div>
+            <div class="step-desc">Cuando aparece <code>SessionExpiredException</code> en los logs</div>
           </div>
           <span class="material-symbols-outlined step-chevron">expand_more</span>
         </div>
         <div class="step-body">
           <div class="alert info">
             <span class="material-symbols-outlined">info</span>
-            El scraper usa una sesión autenticada para evitar bloqueos. Las cookies duran ~30 minutos de inactividad; repite este paso si el scraper detecta sesión expirada.
+            Las cookies de MilAnuncios duran ~30 min de inactividad. El scraper para automáticamente y reporta la excepción.
           </div>
           <div class="code-block">
-            <div class="code-label">terminal</div>
-            <pre>source venv/bin/activate
-python save_session.py</pre>
-            <button class="copy-btn" onclick="copyCode(this, 'source venv/bin/activate\npython save_session.py')">
-              <span class="material-symbols-outlined">content_copy</span>Copiar
-            </button>
-          </div>
-          <p>Se abrirá Chrome. Inicia sesión en MilAnuncios, luego vuelve al terminal y pulsa <strong>Enter</strong> para guardar las cookies.</p>
-          <div class="alert warning">
-            <span class="material-symbols-outlined">warning</span>
-            No elimines la carpeta <code>chrome_profile/</code> — acumula confianza anti-bot a lo largo del tiempo.
-          </div>
-        </div>
-      </div>
-
-      <!-- Step 6 -->
-      <div class="step">
-        <div class="step-header" onclick="toggleStep(this)">
-          <div class="step-num">6</div>
-          <div class="step-meta">
-            <div class="step-title">Arrancar los servicios</div>
-            <div class="step-desc">API en :8000 · Dashboard en :8501</div>
-          </div>
-          <span class="material-symbols-outlined step-chevron">expand_more</span>
-        </div>
-        <div class="step-body">
-          <p>Arranque en primer plano (desarrollo):</p>
-          <div class="code-block">
-            <div class="code-label">terminal — dos pestañas</div>
-            <pre>bash run_api.sh         # → http://localhost:8000
-bash run_dashboard.sh   # → http://localhost:8501</pre>
-            <button class="copy-btn" onclick="copyCode(this, 'bash run_api.sh\nbash run_dashboard.sh')">
-              <span class="material-symbols-outlined">content_copy</span>Copiar
-            </button>
-          </div>
-
-          <p>Arranque en segundo plano (producción, sobrevive al cierre del terminal):</p>
-          <div class="code-block">
-            <div class="code-label">terminal</div>
-            <pre>nohup bash run_api.sh > logs/api.log 2>&1 &
-nohup bash run_dashboard.sh > logs/dashboard.log 2>&1 &</pre>
-            <button class="copy-btn" onclick="copyCode(this, 'nohup bash run_api.sh > logs/api.log 2>&1 &\nnohup bash run_dashboard.sh > logs/dashboard.log 2>&1 &')">
-              <span class="material-symbols-outlined">content_copy</span>Copiar
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Step 7 -->
-      <div class="step">
-        <div class="step-header" onclick="toggleStep(this)">
-          <div class="step-num">7</div>
-          <div class="step-meta">
-            <div class="step-title">Verificar que todo funciona</div>
-            <div class="step-desc">Comprueba el health de la API y abre el dashboard</div>
-          </div>
-          <span class="material-symbols-outlined step-chevron">expand_more</span>
-        </div>
-        <div class="step-body">
-          <div class="code-block">
-            <div class="code-label">terminal</div>
-            <pre>curl http://localhost:8000/health</pre>
-            <button class="copy-btn" onclick="copyCode(this, 'curl http://localhost:8000/health')">
-              <span class="material-symbols-outlined">content_copy</span>Copiar
-            </button>
-          </div>
-          <p>Respuesta esperada:</p>
-          <div class="code-block">
-            <div class="code-label">json</div>
-            <pre>{"status": "ok"}</pre>
-          </div>
-          <div class="alert success">
-            <span class="material-symbols-outlined">check_circle</span>
-            Abre <strong>http://localhost:8501</strong> en tu navegador para acceder al dashboard. Usa la contraseña configurada en <code>DASHBOARD_PASSWORD</code>.
-          </div>
-        </div>
-      </div>
-
-    </div><!-- /steps -->
-
-    <!-- Maintenance -->
-    <div class="section-title">Mantenimiento</div>
-    <div class="steps">
-
-      <div class="step">
-        <div class="step-header" onclick="toggleStep(this)">
-          <div class="step-num"><span class="material-symbols-outlined" style="font-size:15px;">refresh</span></div>
-          <div class="step-meta">
-            <div class="step-title">Renovar sesión expirada</div>
-            <div class="step-desc">Cuando el scraper reporta <code>SessionExpiredException</code></div>
-          </div>
-          <span class="material-symbols-outlined step-chevron">expand_more</span>
-        </div>
-        <div class="step-body">
-          <div class="code-block">
-            <div class="code-label">terminal</div>
+            <div class="code-header">
+              <span class="code-label">terminal</span>
+              <button class="copy-btn" onclick="copyFromPre(this)">
+                <span class="material-symbols-outlined">content_copy</span>Copiar
+              </button>
+            </div>
             <pre>source venv/bin/activate && python save_session.py</pre>
-            <button class="copy-btn" onclick="copyCode(this, 'source venv/bin/activate && python save_session.py')">
-              <span class="material-symbols-outlined">content_copy</span>Copiar
-            </button>
           </div>
-          <p>O desde la API (si está corriendo):</p>
+          <p>O desde la API sin abrir el terminal:</p>
           <div class="code-block">
-            <div class="code-label">terminal</div>
+            <div class="code-header">
+              <span class="code-label">POST /api/session/renew</span>
+              <button class="copy-btn" onclick="copyFromPre(this)">
+                <span class="material-symbols-outlined">content_copy</span>Copiar
+              </button>
+            </div>
             <pre>curl -X POST http://localhost:8000/api/session/renew \
   -H "x-api-key: TU_API_SECRET_KEY"</pre>
-            <button class="copy-btn" onclick="copyCode(this, 'curl -X POST http://localhost:8000/api/session/renew -H x-api-key:TU_API_SECRET_KEY')">
-              <span class="material-symbols-outlined">content_copy</span>Copiar
-            </button>
           </div>
         </div>
       </div>
 
       <div class="step">
         <div class="step-header" onclick="toggleStep(this)">
-          <div class="step-num"><span class="material-symbols-outlined" style="font-size:15px;">stop_circle</span></div>
+          <div class="step-icon">
+            <span class="material-symbols-outlined" style="font-size:14px;">stop_circle</span>
+          </div>
           <div class="step-meta">
             <div class="step-title">Parar los servicios</div>
-            <div class="step-desc">Si arrancaste en background con <code>nohup</code></div>
+            <div class="step-desc">Si arrancaste en background con nohup</div>
           </div>
           <span class="material-symbols-outlined step-chevron">expand_more</span>
         </div>
         <div class="step-body">
           <div class="code-block">
-            <div class="code-label">terminal</div>
+            <div class="code-header">
+              <span class="code-label">terminal</span>
+              <button class="copy-btn" onclick="copyFromPre(this)">
+                <span class="material-symbols-outlined">content_copy</span>Copiar
+              </button>
+            </div>
             <pre>kill $(cat logs/api.pid) $(cat logs/dashboard.pid)</pre>
-            <button class="copy-btn" onclick="copyCode(this, 'kill $(cat logs/api.pid) $(cat logs/dashboard.pid)')">
-              <span class="material-symbols-outlined">content_copy</span>Copiar
-            </button>
           </div>
         </div>
       </div>
 
       <div class="step">
         <div class="step-header" onclick="toggleStep(this)">
-          <div class="step-num"><span class="material-symbols-outlined" style="font-size:15px;">article</span></div>
+          <div class="step-icon">
+            <span class="material-symbols-outlined" style="font-size:14px;">article</span>
+          </div>
           <div class="step-meta">
             <div class="step-title">Ver logs en tiempo real</div>
             <div class="step-desc">Monitorizar la actividad del scraper</div>
@@ -614,28 +608,33 @@ nohup bash run_dashboard.sh > logs/dashboard.log 2>&1 &</pre>
         </div>
         <div class="step-body">
           <div class="code-block">
-            <div class="code-label">terminal</div>
+            <div class="code-header">
+              <span class="code-label">terminal</span>
+              <button class="copy-btn" onclick="copyFromPre(this)">
+                <span class="material-symbols-outlined">content_copy</span>Copiar
+              </button>
+            </div>
             <pre>tail -f logs/api.log
 tail -f scraper.log</pre>
-            <button class="copy-btn" onclick="copyCode(this, 'tail -f logs/api.log\ntail -f scraper.log')">
-              <span class="material-symbols-outlined">content_copy</span>Copiar
-            </button>
+          </div>
+          <div class="alert warning">
+            <span class="material-symbols-outlined">warning</span>
+            No elimines <code>chrome_profile/</code> — acumula confianza anti-bot a lo largo del tiempo.
           </div>
         </div>
       </div>
 
-    </div><!-- /maintenance steps -->
+    </div><!-- /maintenance -->
 
     <footer>
-      <p>Naves Scraper &mdash; <a href="docs/init_milanuncios.md">Documentación técnica</a></p>
+      <p>Naves Scraper &mdash; <a href="docs/init_milanuncios.md">Documentación técnica</a> &mdash; <a href="dashboard-guide.html">Guía del Dashboard</a></p>
     </footer>
 
   </div><!-- /page -->
 
   <script>
     function toggleStep(header) {
-      const step = header.parentElement;
-      step.classList.toggle('open');
+      header.parentElement.classList.toggle('open');
     }
 
     function copyCode(btn, text) {
@@ -644,11 +643,13 @@ tail -f scraper.log</pre>
         const prev = icon.textContent;
         icon.textContent = 'check';
         btn.classList.add('copied');
-        setTimeout(() => {
-          icon.textContent = prev;
-          btn.classList.remove('copied');
-        }, 1800);
+        setTimeout(() => { icon.textContent = prev; btn.classList.remove('copied'); }, 1800);
       });
+    }
+
+    function copyFromPre(btn) {
+      const pre = btn.closest('.code-block').querySelector('pre');
+      copyCode(btn, pre.textContent.trim());
     }
   </script>
 </body>

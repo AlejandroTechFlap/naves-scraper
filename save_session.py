@@ -107,6 +107,8 @@ async def main() -> None:
             break
         remaining = int(deadline - loop.time())
         print(f"INFO: Esperando ({remaining}s)... Por favor, inicia sesión y navega a 'Mis Anuncios'.", end="\r")
+        if remaining % 30 == 0:
+            print(f"\n[LOGIN_WAITING] Esperando login ({remaining}s restantes)", flush=True)
         await asyncio.sleep(LOGIN_POLL_INTERVAL)
 
     print() # Salto de línea limpio después del bucle
