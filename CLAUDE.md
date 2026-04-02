@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Automated scraper for industrial warehouse listings (naves industriales) from MilAnuncios.com. Microservices architecture: CLI scraper + FastAPI REST API + Streamlit dashboard + APScheduler cron, with Webflow CMS integration.
+Automated scraper for industrial warehouse listings (naves industriales) from MilAnuncios.com. Microservices architecture: CLI scraper + FastAPI REST API + Next.js dashboard + APScheduler cron, with Webflow CMS integration.
 
 **Target site:** milanuncios.com — protected by Kasada (hard bot block) and F5/Incapsula reese84 (interactive captcha). The anti-bot strategy is the core engineering challenge.
 
@@ -24,10 +24,10 @@ python scraper_engine.py --pages 2 --dry-run
 
 # Start services
 bash run_api.sh        # FastAPI on :8000
-bash run_dashboard.sh  # Streamlit on :8501
+bash run_frontend.sh   # Next.js dashboard on :3000
 ```
 
-**Access the dashboard:** http://localhost:8501 (password from `.env → DASHBOARD_PASSWORD`)
+**Access the dashboard:** http://localhost:3000 (login with `DASHBOARD_PASSWORD` from `.env`)
 
 ---
 
@@ -53,14 +53,17 @@ The API (`api/main.py`) wraps the scraper as a subprocess via `api/scraper_job.p
 ### Service Communication
 
 ```
-dashboard/app.py (Streamlit :8501)
-        ↓  HTTP + x-api-key
-api/main.py (FastAPI :8000)
-        ↓  subprocess stdout + scraper_status.json
-scraper_engine.py (Python process)
-        ↓  async
-integrations/milanuncios.py → Chrome (headful)
+frontend/ (Next.js :3000)
+        ↓  HTTP + x-api-key              ↓  WebSocket (react-vnc)
+                    api/main.py (FastAPI :8000)     websockify :6080 → x11vnc :5900
+                            ↓  subprocess stdout + scraper_status.json        ↓
+                    scraper_engine.py (Python process)              Xvfb :99
+                            ↓  async                                    ↓
+            integrations/milanuncios.py → Chrome (headful on :99)
 ```
+
+On VPS: Chrome runs on Xvfb :99, captured by x11vnc → websockify → react-vnc in dashboard.
+On Mac: Chrome runs on real display, VNC services not started, panel hidden.
 
 ---
 
@@ -100,11 +103,17 @@ When `CaptchaRequiredException` is raised during scraping, instead of crashing, 
 5. If timeout → prints `[CAPTCHA_TIMEOUT]` → raises `ScrapeBanException`
 
 **Print marker protocol** (stdout → `api/scraper_job.py` parses these):
+
+From `scraper_engine.py`:
 - `[CAPTCHA_REQUIRED]` — captcha detected, waiting
 - `[CAPTCHA_WAITING]` — still waiting (printed every 5 sec)
 - `[CAPTCHA_SOLVED]` — captcha resolved, resuming
 - `[CAPTCHA_TIMEOUT]` — 10 min expired without resolution
-- `[LOGIN_WAITING]` (in `save_session.py`) — waiting for manual login
+
+From `save_session.py`:
+- `[LOGIN_WAITING]` — printed every 30 sec while waiting for manual login
+- `[SESSION_SAVED]` — cookies extracted and saved to `session.json` (success)
+- `[SESSION_TIMEOUT]` — 10 min login wait expired; process exits with rc=1
 
 ### `api/scraper_job.py` — Subprocess management
 
@@ -116,10 +125,16 @@ When `CaptchaRequiredException` is raised during scraping, instead of crashing, 
   - `pid`: process ID
   - `current_page`, `total_new`, `total_skipped`: live progress
   - `challenge_waiting: bool` — true while interactive captcha is pending
-  - `needs_session_renewal: bool` — true after hard ban or captcha timeout
+  - `needs_session_renewal: bool` — true after hard ban or captcha timeout; only cleared on `[SESSION_SAVED]`
   - `last_error`, `started_at`, `finished_at`
 - Also manages `save_session.py` subprocess for session renewal
 - Recovers zombie state on API startup (process died without cleanup)
+
+**Session renewal robustness:**
+- `_do_monitor_session()` tracks `session_saved` flag (only set when `[SESSION_SAVED]` marker seen)
+- `_monitor_session_proc()` wraps with `asyncio.wait_for(timeout=900)` — kills process after 15 min if stuck
+- `stop_session_renewal()` — SIGTERM + 5-sec wait, then SIGKILL; writes `state=error` with "Cancelado por el usuario"
+- `needs_session_renewal` is only cleared in scraper status if session was actually saved (not on rc=0 alone)
 
 ### `api/main.py` — FastAPI microservice
 
@@ -135,29 +150,39 @@ Key endpoints (all require `x-api-key` header):
 | GET | `/api/logs` | Last N lines of scraper log |
 | GET/PUT | `/api/cron` | Read/update cron schedule |
 | POST | `/api/session/renew` | Launch `save_session.py` |
+| POST | `/api/session/stop` | Cancel `save_session.py` process |
 | GET | `/api/session/status` | Session renewal progress |
 | POST | `/api/webflow/sync` | Trigger Webflow sync |
 | GET | `/api/webflow/status` | Sync statistics |
+| GET | `/api/vnc/status` | VNC panel availability + WebSocket port |
 
-### `dashboard/app.py` — Streamlit dashboard
+### `frontend/` — Next.js dashboard (primary)
+
+Next.js 15 + React 19 + shadcn/ui + SWR. See `docs/frontend.md` for full documentation.
 
 6 pages (sidebar navigation):
-1. **Resumen** — metrics overview, scraper state, Webflow sync status
-2. **Control del scraper** — start/stop, configure options, session renewal
-3. **Programacion** — cron schedule presets + custom expression
-4. **Registros** — real-time log viewer
-5. **Anuncios** — paginated listing table with province/surface/price filters
-6. **Webflow** — sync status and trigger
+1. **Resumen** — stat cards (total listings, Webflow sync counts), ScraperCard, Webflow summary
+2. **Control** — RunForm (start/stop/configure), session renewal card
+3. **Programacion** — cron schedule presets + custom cron expression
+4. **Registros** — log viewer with tail-N control
+5. **Anuncios** — paginated listings table with province/surface/price filters
+6. **Webflow** — sync status + trigger button
 
-Key UX behaviors:
-- Password protected (from `DASHBOARD_PASSWORD` env var)
-- `mostrar_alerta_sesion()` shown on every page — displays captcha or session alerts
-- Auto-refreshes every 5 sec when `state == "running"` or `challenge_waiting == True`
-- Session renewal toast notification on state transitions
+Key behaviors:
+- Login via `POST /api/auth/login` → API key stored in `localStorage`
+- `AuthGuard` redirects to `/login` on 401/403
+- `AlertBanner` (sticky top) shows 3 priority states: captcha (orange) → session renewing (blue, with "Cancelar") → session needed (red, with "Abrir Chrome"). Shows "Ver Chrome" button when VNC is available.
+- `ChromeViewer` panel (on Control page) — embedded noVNC viewer for remote captcha solving and session renewal. Only visible when VNC available + captcha/session active.
+- SWR polling: active when `state=running`, `challenge_waiting=true`, or `needs_session_renewal=true` (3s interval); stops when idle
+- `ScraperCard` shows restart button when `state=error|stopped` and `needs_session_renewal=false`
 
 ### `save_session.py` — Manual login
 
-Opens headful Chrome → user logs in manually → detects navigation to `mis-anuncios/` → extracts all cookies via CDP (including http-only) → saves to `session.json`. Prints `[LOGIN_WAITING]` every 30 sec during wait.
+Opens headful Chrome → user logs in manually → detects navigation to `mis-anuncios/` → extracts all cookies via CDP (including http-only) → saves to `session.json`.
+
+Markers: `[LOGIN_WAITING]` every 30 sec, `[SESSION_SAVED]` on success, `[SESSION_TIMEOUT]` + `sys.exit(1)` after 10 min without login.
+
+Handles `about:blank` on first load — retries `browser.get()` up to 3 times and calls `bring_to_front()` to surface the Chrome window.
 
 ### `scraper_engine.py` — Orchestration
 
@@ -266,12 +291,18 @@ python scraper_engine.py --reset           # Ignore checkpoint, start from page 
 1. Extract it in `integrations/parser.py` (add to the return dict)
 2. Add column in `db.py → SCHEMA` and `_NEW_COLUMNS` list (for auto-migration)
 3. Optionally expose it in `api/main.py → get_listings` response
-4. Add to `dashboard/app.py → page_anuncios` display columns
+4. Add column to `frontend/src/app/(app)/anuncios/page.tsx` listings table
 
 **Adding a new API endpoint:**
 1. Add Pydantic model in `api/main.py` if needed
 2. Add route with `dependencies=[Depends(verify_api_key)]`
 3. If it modifies scraper state, update `ScraperStatus` TypedDict in `api/scraper_job.py`
+4. Add corresponding function in `frontend/src/lib/api.ts`
+
+**Adding a new frontend page:**
+1. Create `frontend/src/app/(app)/<page>/page.tsx`
+2. Add sidebar link in `frontend/src/components/layout/sidebar.tsx`
+3. Use `useSWR` + `fetcher` for data fetching; add type to `frontend/src/lib/types.ts` if needed
 
 **Changing ban detection logic:**
 - Edit `_check_for_ban()` in `integrations/milanuncios.py`
@@ -290,8 +321,21 @@ cat session_status.json        # session renewal state
 ## Important Notes
 
 - **Never delete `chrome_profile/`** — accumulated anti-bot trust, hard to rebuild
-- **`DISPLAY` env var** must be set on Linux for headful Chrome (handled by `run_api.sh`)
+- **`DISPLAY` and `REAL_DISPLAY`** both set to `:99` on Linux (Xvfb). On Mac both use the real display. This ensures Chrome is always captured by noVNC on VPS.
 - **Workers must be 1** — `uvicorn ... --workers 1` (multiple workers = multiple browser instances, breaks singleton pattern)
 - **No emojis in UI** — use SVG icons or plain text (project convention)
 - Incremental mode stops on first duplicate (assumes reverse-chronological sort)
 - `docs/init_milanuncios.md` — detailed setup notes and lessons from previous projects
+- `docs/frontend.md` — full Next.js frontend documentation
+- `docs/vnc-chrome-viewer.md` — VNC Chrome remote panel architecture and setup
+
+---
+
+## Global Invariants (apply to all sessions)
+
+See `~/.claude/CLAUDE.md` for the full rules. Summary:
+
+1. **Document First** — update/create spec with `[DRAFT]` before writing any code
+2. **Max 300 lines per file** — split proactively at 250 lines; single responsibility; DRY
+3. **WebSearch before coding** — always fetch latest docs for any external library or API
+4. **MANDATORY: Ask before architecture** — never assume folder structure, patterns, libraries, schemas, or any architectural decision. Always ask Alejandro and wait for confirmation

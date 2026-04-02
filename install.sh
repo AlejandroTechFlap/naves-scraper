@@ -53,8 +53,56 @@ fi
 PY_VERSION=$("$PYTHON" -c "import sys; v=sys.version_info; print(f'{v.major}.{v.minor}.{v.micro}')")
 success "Python $PY_VERSION encontrado en: $(command -v "$PYTHON")"
 
-# ── 2. Entorno virtual ───────────────────────────────────────────────────────
-header "2 · Entorno virtual"
+# ── 2. Dependencias del sistema (Linux) ──────────────────────────────────────
+header "2 · Dependencias del sistema"
+
+if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+    if ! command -v Xvfb &>/dev/null; then
+        info "Instalando xvfb (display virtual — Chrome corre en background)..."
+        if command -v sudo &>/dev/null; then
+            sudo apt-get install -y xvfb
+            success "xvfb instalado"
+        else
+            warn "No se encontró sudo. Instala manualmente: apt-get install -y xvfb"
+        fi
+    else
+        success "xvfb ya esta instalado"
+    fi
+
+    # VNC para panel Chrome remoto (resolver captchas desde el dashboard)
+    if ! command -v x11vnc &>/dev/null || ! command -v websockify &>/dev/null; then
+        info "Instalando x11vnc + websockify (panel Chrome remoto)..."
+        if command -v sudo &>/dev/null; then
+            sudo apt-get install -y x11vnc novnc websockify 2>/dev/null && \
+                success "x11vnc + websockify instalados" || \
+                warn "No se pudieron instalar x11vnc/websockify — panel Chrome remoto no estara disponible"
+        else
+            warn "No se encontro sudo. Instala manualmente: apt-get install -y x11vnc novnc websockify"
+        fi
+    else
+        success "x11vnc + websockify ya estan instalados"
+    fi
+
+    # Fluxbox: window manager minimo para que Chrome se maximice en Xvfb
+    if ! command -v fluxbox &>/dev/null; then
+        info "Instalando fluxbox (window manager para Xvfb)..."
+        if command -v sudo &>/dev/null; then
+            sudo apt-get install -y fluxbox 2>/dev/null && \
+                success "fluxbox instalado" || \
+                warn "No se pudo instalar fluxbox — Chrome puede no llenar la pantalla virtual"
+        else
+            warn "No se encontro sudo. Instala manualmente: apt-get install -y fluxbox"
+        fi
+    else
+        success "fluxbox ya esta instalado"
+    fi
+else
+    info "macOS detectado — xvfb/VNC no necesarios (Chrome usa la pantalla del sistema)"
+fi
+
+# ── 3. Entorno virtual ───────────────────────────────────────────────────────
+header "3 · Entorno virtual"
+
 
 if [ ! -d "venv" ]; then
     info "Creando venv/..."
@@ -69,7 +117,7 @@ source venv/bin/activate
 PYTHON="python"  # A partir de aquí usar el python del venv
 
 # ── 3. Dependencias ──────────────────────────────────────────────────────────
-header "3 · Instalando dependencias"
+header "4 · Instalando dependencias"
 
 info "pip install -r requirements.txt ..."
 pip install --upgrade pip --quiet
@@ -77,7 +125,7 @@ pip install -r requirements.txt --quiet
 success "Dependencias instaladas"
 
 # ── 4. Archivo .env ──────────────────────────────────────────────────────────
-header "4 · Configuración .env"
+header "5 · Configuración .env"
 
 if [ ! -f ".env" ]; then
     info "Copiando .env.example → .env"
@@ -109,7 +157,7 @@ else
 fi
 
 # ── 5. Directorios ───────────────────────────────────────────────────────────
-header "5 · Creando directorios"
+header "6 · Creando directorios"
 
 for dir in logs images chrome_profile; do
     if [ ! -d "$dir" ]; then
@@ -120,56 +168,59 @@ for dir in logs images chrome_profile; do
     fi
 done
 
-# ── 6. Resumen ───────────────────────────────────────────────────────────────
-header "═══════════════════════════════════════"
-success "Setup completado"
-header "═══════════════════════════════════════"
+# ── 7. Frontend (Next.js) ───────────────────────────────────────────────
+header "7 · Frontend (dashboard)"
 
-echo ""
-echo -e "${BOLD}Próximos pasos:${RESET}"
-echo ""
-echo -e "  ${CYAN}1.${RESET} Edita ${BOLD}.env${RESET} con tus credenciales:"
-echo -e "       ${YELLOW}nano .env${RESET}   (o código editor de tu elección)"
-echo -e "       Variables obligatorias: WEBFLOW_TOKEN, WEBFLOW_COLLECTION_ID, DASHBOARD_PASSWORD"
-echo ""
-echo -e "  ${CYAN}2.${RESET} Configura la sesión de MilAnuncios (login manual ~1 min):"
-echo -e "       ${YELLOW}source venv/bin/activate && python save_session.py${RESET}"
-echo ""
-echo -e "  ${CYAN}3.${RESET} Arranca los servicios:"
-echo -e "       ${YELLOW}bash run_api.sh${RESET}        → API en http://localhost:8000"
-echo -e "       ${YELLOW}bash run_dashboard.sh${RESET}  → Dashboard en http://localhost:8501"
-echo ""
-echo -e "  ${CYAN}4.${RESET} Para producción (background, sobrevive al cierre del terminal):"
-echo -e "       ${YELLOW}nohup bash run_api.sh > logs/api.log 2>&1 &${RESET}"
-echo -e "       ${YELLOW}nohup bash run_dashboard.sh > logs/dashboard.log 2>&1 &${RESET}"
-echo ""
-
-# ── Opcional: arrancar ahora ─────────────────────────────────────────────────
-echo -e "${BOLD}¿Quieres arrancar la API y el Dashboard ahora en background? [s/N]${RESET} "
-read -r start_now </dev/tty || true
-
-if [[ "$start_now" =~ ^[sS]$ ]]; then
-    # Verificar que .env tiene las variables mínimas
-    dash_pass=$(grep "^DASHBOARD_PASSWORD=" .env | cut -d'=' -f2- | tr -d ' ')
-    if [ -z "$dash_pass" ]; then
-        warn "DASHBOARD_PASSWORD no está configurada en .env — arranca los servicios manualmente después de editarlo."
+if ! command -v node &>/dev/null; then
+    warn "Node.js no encontrado — el dashboard no se podra compilar."
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        echo "   Instala con: brew install node"
     else
-        info "Arrancando API..."
-        nohup bash run_api.sh > logs/api.log 2>&1 &
-        echo $! > logs/api.pid
-        success "API iniciada (PID $(cat logs/api.pid)) → logs/api.log"
+        echo "   Instala con: curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - && sudo apt-get install -y nodejs"
+    fi
+else
+    NODE_VERSION=$(node -v)
+    success "Node.js $NODE_VERSION encontrado"
 
-        info "Arrancando Dashboard..."
-        nohup bash run_dashboard.sh > logs/dashboard.log 2>&1 &
-        echo $! > logs/dashboard.pid
-        success "Dashboard iniciado (PID $(cat logs/dashboard.pid)) → logs/dashboard.log"
+    if [ -d "frontend" ]; then
+        info "Instalando dependencias del frontend..."
+        cd frontend
+        npm install --legacy-peer-deps 2>&1 | tail -1
+        success "Dependencias del frontend instaladas"
 
-        echo ""
-        echo -e "  API:       ${CYAN}http://localhost:8000/health${RESET}"
-        echo -e "  Dashboard: ${CYAN}http://localhost:8501${RESET}"
-        echo ""
-        echo -e "  Para parar: ${YELLOW}kill \$(cat logs/api.pid) \$(cat logs/dashboard.pid)${RESET}"
+        info "Compilando dashboard (npm run build)..."
+        npm run build 2>&1 | tail -3
+        success "Dashboard compilado — listo para produccion"
+        cd "$SCRIPT_DIR"
+    else
+        warn "Carpeta frontend/ no encontrada — salta este paso"
     fi
 fi
 
+# ── 8. Resumen final ─────────────────────────────────────────────────────────
+header "═══════════════════════════════════════"
+success "Instalacion completada"
+header "═══════════════════════════════════════"
+
+API_KEY_VALUE=$(grep "^API_SECRET_KEY=" .env | cut -d'=' -f2- | tr -d ' ')
+echo ""
+echo -e "${BOLD}API_SECRET_KEY generada:${RESET}"
+echo -e "  ${CYAN}${API_KEY_VALUE}${RESET}"
+echo -e "  ${YELLOW}(guarda este valor — lo necesitaras para configurar el dashboard)${RESET}"
+echo ""
+echo -e "${BOLD}Proximos pasos:${RESET}"
+echo ""
+echo -e "  ${CYAN}1.${RESET} Edita ${BOLD}.env${RESET} con tus 3 credenciales:"
+echo -e "       WEBFLOW_TOKEN, WEBFLOW_COLLECTION_ID, DASHBOARD_PASSWORD"
+echo -e "       ${YELLOW}nano .env${RESET}"
+echo ""
+echo -e "  ${CYAN}2.${RESET} Guarda la sesion de MilAnuncios (login manual, una sola vez):"
+echo -e "       ${YELLOW}source venv/bin/activate && python save_session.py${RESET}"
+echo -e "       Se abrira Chrome — inicia sesion y navega a Mis Anuncios."
+echo -e "       El script detecta el login automaticamente y guarda las cookies."
+echo ""
+echo -e "  ${CYAN}3.${RESET} Arranca los servicios:"
+echo -e "       ${YELLOW}bash start.sh${RESET}"
+echo ""
+echo -e "  Dashboard: ${CYAN}http://localhost:3000${RESET}"
 echo ""

@@ -16,7 +16,8 @@ from fastapi import Header, HTTPException
 load_dotenv()
 
 DB_PATH = os.getenv("DB_PATH", "naves.db")
-API_SECRET_KEY = os.getenv("API_SECRET_KEY", "")
+API_SECRET_KEY: str = os.getenv("API_SECRET_KEY", "")
+DASHBOARD_PASSWORD: str = os.getenv("DASHBOARD_PASSWORD", "")
 CONFIG_FILE = Path("config.json")
 
 _CONFIG_DEFAULTS = {

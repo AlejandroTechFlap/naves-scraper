@@ -15,9 +15,12 @@ import asyncio
 import json
 import logging
 import os
+import sys
 from pathlib import Path
 
 import zendriver as uc
+
+from utils.browser import NavigationError, wait_for_navigation
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -76,32 +79,27 @@ async def main() -> None:
             "--no-sandbox",
             "--disable-setuid-sandbox",
             "--disable-features=IsolateOrigins,site-per-process",
+            "--no-restore-last-session",
+            "--window-size=1920,1080",
+            "--window-position=0,0",
+            "--start-maximized",
         ],
     )
 
     page = await browser.get(TARGET_URL)
+
     try:
-        await page.wait_for_ready_state(until="complete")
-    except Exception:
-        await asyncio.sleep(5)
-
-    # Reintentar si Chrome quedó en about:blank — usar evaluate() para la URL real
-    # (page.url devuelve la URL solicitada, no la cargada realmente)
-    for attempt in range(3):
+        actual_url = await wait_for_navigation(
+            page, TARGET_URL, browser=browser, marker_prefix="SESSION_NAV",
+        )
+    except NavigationError:
         try:
-            actual_url = await page.evaluate("window.location.href") or ""
-            if actual_url and "about:blank" not in actual_url:
-                break
+            await browser.stop()
         except Exception:
-            actual_url = ""
-        logger.info("Reintentando navegación a %s (intento %d/3)...", TARGET_URL, attempt + 1)
-        await page.get(TARGET_URL)
-        try:
-            await page.wait_for_ready_state(until="complete")
-        except Exception:
-            await asyncio.sleep(5)
+            pass
+        sys.exit(1)
 
-    logger.info(f"Página cargada: {TARGET_URL}")
+    logger.info("[SESSION_NAV] Página cargada: %s", actual_url)
     print("=====================================================================")
     print("INFO: Chrome abierto. INSTRUCCIONES:")
     print(" 1. Si aparece un Captcha, resuélvelo manualmente ahora.")
@@ -130,13 +128,13 @@ async def main() -> None:
     print() # Salto de línea limpio después del bucle
 
     if not logged_in:
-        print("ERROR: Tiempo de espera agotado (10 min) sin detectar login. Cerrando.")
+        print("[SESSION_TIMEOUT] Tiempo de espera agotado (10 min). La sesion NO se renovó.", flush=True)
         logger.error("Tiempo de espera de login agotado.")
         try:
-            browser.stop()
+            await browser.stop()
         except Exception:
             pass
-        return
+        sys.exit(1)
 
     # ── Navegar a naves industriales para registrar el fingerprint ─────────────
     logger.info("Navegando a naves-industriales para registrar fingerprint de categoria...")
@@ -152,7 +150,7 @@ async def main() -> None:
         json.dump(cookies, f, ensure_ascii=False, indent=2)
     logger.info(f"Sesion guardada en {OUTPUT_FILE}")
     logger.info(f"Perfil Chrome guardado en {PROFILE_DIR}")
-    print(f"INFO: Sesion guardada correctamente ({len(cookies)} cookies). Cerrando Chrome.")
+    print(f"[SESSION_SAVED] Sesion guardada correctamente ({len(cookies)} cookies). Cerrando Chrome.", flush=True)
 
     try:
         await browser.stop()

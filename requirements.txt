@@ -18,7 +18,3 @@ sqlalchemy>=2.0.0
 
 # Validación cron
 croniter>=2.0.0
-
-# Dashboard
-streamlit>=1.35.0
-pandas>=2.2.0

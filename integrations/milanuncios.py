@@ -5,12 +5,12 @@ y mantiene un perfil Chrome persistente para acumular fingerprint de confianza.
 Todo el módulo es async — el entry point es scraper_engine.py via asyncio.run().
 """
 import asyncio
-import json
 import logging
 import os
 import random
 import re
-from pathlib import Path
+import subprocess
+import time
 from typing import Optional
 
 import zendriver as uc
@@ -20,6 +20,8 @@ from tenacity import (
     stop_after_attempt,
     retry_if_not_exception_type,
 )
+
+from integrations.browser_lifecycle import warmup, wait_for_captcha_solve
 
 logger = logging.getLogger(__name__)
 
@@ -100,93 +102,58 @@ async def get_browser() -> uc.Browser:
     return _session["browser"]
 
 
+def _kill_orphan_chromes() -> None:
+    """Mata procesos Chrome huérfanos y limpia lock files del perfil.
+
+    Cuando el scraper crashea o es matado con SIGKILL, Chrome sobrevive y
+    mantiene el SingletonLock del perfil. La siguiente llamada a uc.start()
+    no puede crear una nueva instancia — Chrome detecta el lock y redirige
+    a la instancia existente (sin abrir puerto CDP nuevo), causando
+    "Failed to connect to browser".
+    """
+    subprocess.run(["pkill", "-f", "chrome"], capture_output=True)
+    time.sleep(1)
+    for lock_file in ("SingletonLock", "SingletonSocket", "SingletonCookie"):
+        path = os.path.join(PROFILE_DIR, lock_file)
+        try:
+            os.remove(path)
+        except FileNotFoundError:
+            pass
+    logger.info("[Cleanup] Procesos Chrome huérfanos y lock files limpiados.")
+
+
 async def _start_browser() -> uc.Browser:
+    # Limpiar procesos Chrome huérfanos y lock files antes de iniciar.
+    _kill_orphan_chromes()
     # headless=False es obligatorio: F5/Kasada detecta --headless=new y bloquea.
     # user_data_dir persistente: reutiliza el fingerprint del perfil donde se
     # resolvió el challenge en save_session.py, evitando el re-challenge.
     # Viewport aleatorio: evita la firma fija 1920x1080 que es flag de automation.
     if not os.path.isdir(PROFILE_DIR):
         logger.warning(f"Perfil Chrome no encontrado en {PROFILE_DIR}. Ejecuta save_session.py primero.")
-    _w, _h = random.choice(_VIEWPORTS)
+    # En Xvfb Chrome se maximiza para llenar la pantalla virtual (noVNC).
+    # En display real se usa viewport aleatorio para evitar fingerprint fijo.
+    on_virtual_display = os.environ.get("VIRTUAL_DISPLAY", "false") == "true"
+    _w, _h = (1920, 1080) if on_virtual_display else random.choice(_VIEWPORTS)
     browser = await uc.start(
         headless=False,
         user_data_dir=PROFILE_DIR,
+        browser_connection_timeout=1.0,
+        browser_connection_max_tries=20,
         browser_args=[
             "--no-sandbox",
             "--disable-setuid-sandbox",
             "--disable-blink-features=AutomationControlled",
             "--disable-features=IsolateOrigins,site-per-process",
+            "--no-restore-last-session",
             f"--window-size={_w},{_h}",
+            "--window-position=0,0",
             "--start-maximized",
         ],
     )
     logger.info(f"Browser iniciado ({_w}x{_h}) con perfil persistente: {PROFILE_DIR}")
-    await _warmup(browser)
+    await warmup(browser)
     return browser
-
-
-async def _warmup(browser: uc.Browser) -> None:
-    """
-    Secuencia de warm-up en 3 pasos para que p.js/reese84 genere el token
-    de confianza antes de navegar a la URL de búsqueda real.
-    Sin este warm-up, el challenge se activa en la primera petición.
-    """
-    # Paso 1: homepage — deja que los scripts anti-bot corran
-    logger.info("Warm-up paso 1/3: homepage...")
-    page = await browser.get(BASE_URL)
-    try:
-        await page.wait_for_ready_state(until="complete")
-    except Exception:
-        await asyncio.sleep(5)
-
-    # Verificar URL real — page.url devuelve la URL solicitada, no la cargada
-    for attempt in range(3):
-        try:
-            actual_url = await page.evaluate("window.location.href") or ""
-            if actual_url and "about:blank" not in actual_url:
-                break
-        except Exception:
-            actual_url = ""
-        logger.info("Warm-up: reintentando navegación a %s (intento %d/3)...", BASE_URL, attempt + 1)
-        await page.get(BASE_URL)
-        try:
-            await page.wait_for_ready_state(until="complete")
-        except Exception:
-            await asyncio.sleep(5)
-
-    await asyncio.sleep(random.uniform(2.0, 4.0))
-    title = await page.evaluate("document.title") or ""
-
-    if "pardon" in title.lower():
-        logger.warning("Homepage bloqueada en warm-up — perfil caducado. Re-ejecuta save_session.py")
-        return
-
-    logger.info(f"Warm-up paso 1 OK: {title}")
-
-    # Paso 2: scroll suave para simular lectura humana
-    try:
-        await page.scroll_down(random.randint(200, 500))
-    except Exception:
-        pass
-    await asyncio.sleep(random.uniform(1.5, 3.0))
-
-    # Paso 3: navegar a la categoría objetivo para activar el token de esa sección
-    logger.info("Warm-up paso 2/3: categoría naves-industriales...")
-    await page.get("https://www.milanuncios.com/naves-industriales/")
-    await asyncio.sleep(random.uniform(3.0, 5.0))
-    html = await page.get_content()
-
-    if "pardon" in html.lower() or "geetest" in html.lower():
-        logger.warning("Categoría bloqueada en warm-up — re-ejecuta save_session.py y resuelve el captcha manualmente.")
-    else:
-        logger.info("Warm-up paso 2/3 OK.")
-
-    try:
-        await page.scroll_down(random.randint(100, 300))
-    except Exception:
-        pass
-    await asyncio.sleep(random.uniform(1.0, 2.0))
-    logger.info("Warm-up completo.")
 
 
 _keepalive_task: Optional[asyncio.Task] = None
@@ -241,40 +208,6 @@ def _check_for_ban(url: str, html: str, title: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Espera interactiva de captcha
-# ---------------------------------------------------------------------------
-
-_CAPTCHA_MARKERS = ("geetest", "pardon our interruption", "just a moment", "checking your browser")
-
-async def _wait_for_captcha_solve(page, url: str, timeout: int = 600) -> None:
-    """Mantiene Chrome abierto y espera hasta que el usuario resuelva el captcha.
-
-    Imprime marcadores que `scraper_job.py` detecta para actualizar el dashboard.
-    Timeout: 10 minutos → raise ScrapeBanException.
-    """
-    print("[CAPTCHA_REQUIRED] Captcha detectado — resuelve el captcha en la ventana de Chrome para continuar", flush=True)
-    logger.warning(f"[CAPTCHA] Captcha interactivo en {url} — esperando resolución manual (max {timeout}s)")
-    loop = asyncio.get_event_loop()
-    deadline = loop.time() + timeout
-    while loop.time() < deadline:
-        await asyncio.sleep(5)
-        remaining = int(deadline - loop.time())
-        try:
-            title = await page.evaluate("document.title") or ""
-            html = await page.get_content()
-            if not any(kw in html.lower() for kw in _CAPTCHA_MARKERS):
-                print("[CAPTCHA_SOLVED] Captcha resuelto — continuando scraping", flush=True)
-                logger.info("[CAPTCHA] Captcha resuelto por el usuario — continuando.")
-                return
-        except Exception:
-            pass
-        print(f"[CAPTCHA_WAITING] Esperando resolución del captcha ({remaining}s restantes)...", flush=True)
-    print("[CAPTCHA_TIMEOUT] Tiempo agotado esperando el captcha — se requiere renovar sesión", flush=True)
-    logger.error("[CAPTCHA] Tiempo agotado (%ds) sin resolver captcha en %s", timeout, url)
-    raise ScrapeBanException(f"Captcha no resuelto en {timeout}s en {url} — re-ejecuta save_session.py")
-
-
-# ---------------------------------------------------------------------------
 # Scraping de página de resultados
 # ---------------------------------------------------------------------------
 
@@ -293,7 +226,7 @@ async def scrape_search_page(page_num: int, min_m2: int = 1000) -> list[str]:
     try:
         _check_for_ban(url, html, title)
     except CaptchaRequiredException:
-        await _wait_for_captcha_solve(page, url)
+        await wait_for_captcha_solve(page, url)
         html = await page.get_content()
         title = await page.evaluate("document.title") or ""
         _check_for_ban(url, html, title)
@@ -349,7 +282,7 @@ async def scrape_listing(url: str) -> dict:
     try:
         _check_for_ban(url, html, title)
     except CaptchaRequiredException:
-        await _wait_for_captcha_solve(page, url)
+        await wait_for_captcha_solve(page, url)
         html = await page.get_content()
         title = await page.evaluate("document.title") or ""
         _check_for_ban(url, html, title)

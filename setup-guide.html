@@ -292,6 +292,7 @@
         <div class="badge"><span class="material-symbols-outlined">laptop_mac</span>macOS 12+</div>
         <div class="badge"><span class="material-symbols-outlined">terminal</span>Ubuntu 22+</div>
         <div class="badge"><span class="material-symbols-outlined">code</span>Python 3.11+</div>
+        <div class="badge"><span class="material-symbols-outlined">javascript</span>Node.js 20+</div>
       </div>
     </header>
 
@@ -308,6 +309,10 @@
       </li>
       <li>
         <span class="material-symbols-outlined">check_circle</span>
+        Node.js 20+ instalado — <code>node --version</code> debe mostrar v20 o superior
+      </li>
+      <li>
+        <span class="material-symbols-outlined">check_circle</span>
         Conexión a internet activa — el instalador descarga todo lo necesario
       </li>
     </ul>
@@ -320,26 +325,25 @@
       <div class="flow-step">
         <div class="flow-spine"><div class="flow-num">1</div></div>
         <div class="flow-body">
-          <div class="flow-title">Instalar git y Python</div>
-          <div class="flow-desc">Elige tu sistema operativo</div>
+          <div class="flow-title">Instalar Homebrew, git y Python</div>
+          <div class="flow-desc">macOS — ejecuta en orden, una sola vez</div>
           <div class="code-block">
             <div class="code-header">
-              <span class="code-label">macOS — Homebrew + git + Python 3.12</span>
-              <button class="copy-btn" onclick="copyFromPre(this)">
+              <span class="code-label">terminal — instalar Homebrew</span>
+              <button class="copy-btn" onclick="copyCode(this, '/bin/bash -c &quot;$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)&quot;')">
                 <span class="material-symbols-outlined">content_copy</span>Copiar
               </button>
             </div>
-            <pre>/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-brew install git python@3.12</pre>
+            <pre>/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"</pre>
           </div>
           <div class="code-block">
             <div class="code-header">
-              <span class="code-label">Ubuntu / Debian</span>
-              <button class="copy-btn" onclick="copyFromPre(this)">
+              <span class="code-label">terminal — instalar git y Python 3.12</span>
+              <button class="copy-btn" onclick="copyCode(this, 'brew install git python@3.12')">
                 <span class="material-symbols-outlined">content_copy</span>Copiar
               </button>
             </div>
-            <pre>sudo apt update && sudo apt install -y git python3.12 python3.12-venv</pre>
+            <pre>brew install git python@3.12</pre>
           </div>
         </div>
       </div>
@@ -361,7 +365,7 @@ brew install git python@3.12</pre>
 cd naves-scraper
 bash install.sh</pre>
           </div>
-          <div class="flow-note">Al finalizar, el script pregunta si quieres arrancar los servicios ahora. Responde <strong>N</strong> y continúa con los pasos siguientes.</div>
+          <div class="flow-note">Al terminar el script muestra el <code>API_SECRET_KEY</code> generado — guárdalo.</div>
         </div>
       </div>
 
@@ -377,9 +381,11 @@ bash install.sh</pre>
             <span><code>.env</code> contiene secretos — nunca lo subas a Git. Ya está en <code>.gitignore</code>.</span>
           </div>
 
+          <p>El instalador crea el <code>.env</code> con valores por defecto. Solo necesitas rellenar los tres campos marcados como <strong>Requerida</strong>.</p>
+
           <div class="code-block">
             <div class="code-header">
-              <span class="code-label">paso 3a — editar credenciales</span>
+              <span class="code-label">paso 3a — abrir .env</span>
               <button class="copy-btn" onclick="copyCode(this, 'nano .env')">
                 <span class="material-symbols-outlined">content_copy</span>Copiar
               </button>
@@ -395,35 +401,89 @@ bash install.sh</pre>
               <tr>
                 <td>WEBFLOW_TOKEN</td>
                 <td><span class="req-badge">Requerida</span></td>
-                <td>Token de API de Webflow (perfil → API Access)</td>
+                <td>Token de API de Webflow — perfil → API Access</td>
               </tr>
               <tr>
                 <td>WEBFLOW_COLLECTION_ID</td>
                 <td><span class="req-badge">Requerida</span></td>
-                <td>ID de la colección CMS de destino</td>
+                <td>ID de la colección CMS de destino en Webflow</td>
               </tr>
               <tr>
                 <td>DASHBOARD_PASSWORD</td>
                 <td><span class="req-badge">Requerida</span></td>
-                <td>Contraseña para acceder al dashboard</td>
+                <td>Contraseña de acceso al dashboard (http://localhost:3000)</td>
               </tr>
               <tr>
                 <td>API_SECRET_KEY</td>
                 <td><span class="opt-badge">Auto</span></td>
-                <td>Generada automáticamente por <code>install.sh</code></td>
+                <td>Generada por <code>install.sh</code>. Para regenerar: <code>python -c "import secrets; print(secrets.token_hex(32))"</code></td>
               </tr>
               <tr>
                 <td>MAX_PAGES</td>
                 <td><span class="opt-badge">Opcional</span></td>
-                <td>Páginas a scrapear. <code>0</code> = ilimitado</td>
+                <td>Páginas a scrapear por ejecución. <code>0</code> = ilimitado</td>
               </tr>
               <tr>
                 <td>MIN_SURFACE_M2</td>
                 <td><span class="opt-badge">Opcional</span></td>
-                <td>Superficie mínima en m². Por defecto: <code>1000</code></td>
+                <td>Superficie mínima de las naves a guardar. Por defecto: <code>1000</code></td>
+              </tr>
+              <tr>
+                <td>DOWNLOAD_IMAGES</td>
+                <td><span class="opt-badge">Opcional</span></td>
+                <td>Descarga imágenes de los anuncios. <code>true</code> / <code>false</code>. Por defecto: <code>true</code></td>
+              </tr>
+              <tr>
+                <td>IMAGES_DIR</td>
+                <td><span class="opt-badge">Opcional</span></td>
+                <td>Carpeta local donde se guardan las imágenes. Por defecto: <code>images</code></td>
+              </tr>
+              <tr>
+                <td>DB_PATH</td>
+                <td><span class="opt-badge">Opcional</span></td>
+                <td>Ruta al archivo SQLite. Por defecto: <code>naves.db</code></td>
+              </tr>
+              <tr>
+                <td>API_BASE_URL</td>
+                <td><span class="opt-badge">Opcional</span></td>
+                <td>URL base de la API interna usada por el dashboard. Por defecto: <code>http://localhost:8000</code></td>
+              </tr>
+              <tr>
+                <td>PROXY_SERVER</td>
+                <td><span class="opt-badge">Opcional</span></td>
+                <td>Proxy HTTP para Chrome. Formato: <code>http://user:pass@host:port</code>. Desactivado si no se define.</td>
               </tr>
             </tbody>
           </table>
+
+          <p>Plantilla completa del <code>.env</code> para copiar y pegar:</p>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-label">.env — plantilla completa</span>
+              <button class="copy-btn" onclick="copyFromPre(this)">
+                <span class="material-symbols-outlined">content_copy</span>Copiar
+              </button>
+            </div>
+            <pre># ── Scraper ────────────────────────────────────────────────────────────────
+DB_PATH=naves.db
+MAX_PAGES=0
+MIN_SURFACE_M2=1000
+DOWNLOAD_IMAGES=true
+IMAGES_DIR=images
+# PROXY_SERVER=http://user:pass@host:port
+
+# ── Webflow CMS ────────────────────────────────────────────────────────────
+WEBFLOW_TOKEN=TU_TOKEN_WEBFLOW
+WEBFLOW_COLLECTION_ID=TU_COLLECTION_ID
+
+# ── API / Microservicio ────────────────────────────────────────────────────
+# Generar con: python -c "import secrets; print(secrets.token_hex(32))"
+API_SECRET_KEY=cambia_esto_por_un_token_seguro
+
+# ── Dashboard ─────────────────────────────────────────────────────────────
+DASHBOARD_PASSWORD=cambia_esta_contrasena
+API_BASE_URL=http://localhost:8000</pre>
+          </div>
 
           <div class="code-block">
             <div class="code-header">
@@ -434,7 +494,7 @@ bash install.sh</pre>
             </div>
             <pre>source venv/bin/activate && python save_session.py</pre>
           </div>
-          <div class="flow-note">Se abrirá Chrome. Inicia sesión en MilAnuncios y pulsa <strong>Enter</strong> en el terminal para guardar las cookies.</div>
+          <div class="flow-note">Se abrirá Chrome. Inicia sesión en MilAnuncios y navega a <strong>Mis Anuncios</strong>. El script detecta el login automáticamente y guarda las cookies — no es necesario pulsar nada.</div>
         </div>
       </div>
 
@@ -456,7 +516,7 @@ bash install.sh</pre>
           <div class="alert success">
             <span class="material-symbols-outlined">check_circle</span>
             <span>
-              Dashboard: <strong>http://localhost:8501</strong> — usa la contraseña de <code>DASHBOARD_PASSWORD</code><br>
+              Dashboard: <strong>http://localhost:3000</strong> — usa la contraseña de <code>DASHBOARD_PASSWORD</code><br>
               API health: <strong>http://localhost:8000/health</strong> — debe devolver <code>{"status":"ok"}</code>
             </span>
           </div>
@@ -638,6 +698,50 @@ tail -f logs/scraper.log</pre>
           <div class="alert warning">
             <span class="material-symbols-outlined">warning</span>
             No elimines <code>chrome_profile/</code> — acumula confianza anti-bot a lo largo del tiempo.
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-icon">
+            <span class="material-symbols-outlined" style="font-size:14px;">desktop_windows</span>
+          </div>
+          <div class="step-meta">
+            <div class="step-title">Panel Chrome remoto (VPS)</div>
+            <div class="step-desc">Resolver captchas desde el dashboard sin acceso fisico al servidor</div>
+          </div>
+          <span class="material-symbols-outlined step-chevron">expand_more</span>
+        </div>
+        <div class="step-body">
+          <div class="alert info">
+            <span class="material-symbols-outlined">info</span>
+            <span>Solo necesario en VPS/servidor remoto. En Mac local, Chrome es visible directamente en pantalla.</span>
+          </div>
+          <p>El <code>install.sh</code> instala automaticamente <code>x11vnc</code> y <code>websockify</code> en Linux. Si no se instalaron, ejecuta:</p>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-label">terminal — instalar dependencias VNC</span>
+              <button class="copy-btn" onclick="copyFromPre(this)">
+                <span class="material-symbols-outlined">content_copy</span>Copiar
+              </button>
+            </div>
+            <pre>sudo apt-get install -y x11vnc novnc websockify</pre>
+          </div>
+          <p>Reinicia los servicios para activar el panel:</p>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-label">terminal</span>
+              <button class="copy-btn" onclick="copyCode(this, 'bash restart.sh')">
+                <span class="material-symbols-outlined">content_copy</span>Copiar
+              </button>
+            </div>
+            <pre>bash restart.sh</pre>
+          </div>
+          <p>Una vez activo, cuando aparezca un captcha o se inicie la renovacion de sesion, el dashboard mostrara un panel <strong>"Chrome remoto"</strong> en la pagina de Control. Podras ver e interactuar con Chrome directamente desde el navegador.</p>
+          <div class="alert warning">
+            <span class="material-symbols-outlined">warning</span>
+            <span>x11vnc escucha solo en localhost. websockify expone el puerto <code>6080</code> — asegurate de que tu firewall solo permita acceso a los puertos <code>3000</code> (dashboard) y <code>8000</code> (API).</span>
           </div>
         </div>
       </div>

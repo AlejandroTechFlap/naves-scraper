@@ -441,8 +441,8 @@ python scraper_engine.py --batch 100
 bash start.sh
 ```
 
-Lanza la API (puerto 8000) y el dashboard (puerto 8501) en segundo plano.
-Los PID se guardan en `logs/api.pid` y `logs/dashboard.pid`.
+Lanza la API (puerto 8000) y el dashboard Next.js (puerto 3000) en segundo plano.
+Los PID se guardan en `logs/api.pid` y `logs/frontend.pid`.
 
 ### Detener
 
@@ -462,7 +462,7 @@ Equivale a `stop.sh` + `start.sh`.
 
 ```bash
 tail -f logs/api.log        # logs de la API (FastAPI / uvicorn)
-tail -f logs/dashboard.log  # logs del dashboard (Streamlit)
+tail -f logs/frontend.log   # logs del dashboard (Next.js)
 tail -f logs/scraper.log    # logs del scraper cuando está en marcha
 ```
 
@@ -471,22 +471,22 @@ tail -f logs/scraper.log    # logs del scraper cuando está en marcha
 ```bash
 # Iniciar
 nohup bash run_api.sh > logs/api.log 2>&1 & echo $! > logs/api.pid
-nohup bash run_dashboard.sh > logs/dashboard.log 2>&1 & echo $! > logs/dashboard.pid
+nohup bash run_frontend.sh > logs/frontend.log 2>&1 & echo $! > logs/frontend.pid
 
 # Detener por PID guardado
 kill $(cat logs/api.pid)
-kill $(cat logs/dashboard.pid)
+kill $(cat logs/frontend.pid)
 
 # Detener por nombre de proceso (alternativa)
 pkill -f "uvicorn api.main:app"
-pkill -f "streamlit run dashboard/app.py"
+pkill -f "next-server"
 ```
 
 ### Acceso
 
 | Servicio   | URL                    |
 |------------|------------------------|
-| Dashboard  | http://localhost:8501  |
+| Dashboard  | http://localhost:3000  |
 | API        | http://localhost:8000  |
 | API health | http://localhost:8000/health |
 ```

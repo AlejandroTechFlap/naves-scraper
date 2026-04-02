@@ -11,7 +11,8 @@ session_status.json
 *.db-shm
 *.db-wal
 
-# scheduler.db — se regenera automáticamente
+# SQLite databases (machine-specific data, too large for git)
+naves.db
 scheduler.db
 
 # Logs
@@ -41,6 +42,10 @@ test_*.py
 plan-*.md
 plan_*.md
 .claude/
+
+# Frontend build artifacts
+frontend/.next/
+frontend/node_modules/
 
 # IDE
 .idea/

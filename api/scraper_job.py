@@ -12,7 +12,9 @@ import asyncio
 import json
 import logging
 import os
+import signal
 import sys
+import time
 from datetime import datetime, timezone
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
@@ -28,8 +30,6 @@ LOG_FILE = PROJECT_ROOT / "logs" / "scraper.log"
 # Proceso activo (módulo-level, compartido en el proceso FastAPI)
 _proc: asyncio.subprocess.Process | None = None
 _lock = asyncio.Lock()
-_session_proc: asyncio.subprocess.Process | None = None
-_session_lock = asyncio.Lock()
 
 
 class ScraperStatus(TypedDict):
@@ -78,10 +78,26 @@ def read_status() -> ScraperStatus:
         return dict(_DEFAULT_STATUS)  # type: ignore[return-value]
 
 
+def _write_session_status(data: dict) -> None:
+    tmp = SESSION_STATUS_FILE.with_suffix(".tmp")
+    tmp.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    tmp.replace(SESSION_STATUS_FILE)
+
+
+def read_session_status() -> dict:
+    if not SESSION_STATUS_FILE.exists():
+        return {"state": "idle", "pid": None, "started_at": None, "finished_at": None, "last_error": None}
+    try:
+        return json.loads(SESSION_STATUS_FILE.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return {"state": "idle", "pid": None, "started_at": None, "finished_at": None, "last_error": None}
+
+
 def recover_stale_session_status() -> None:
     """
-    Al iniciar FastAPI: si el estado de sesión dice "running" pero el PID ya no existe,
-    corregir a "error" para que el dashboard no quede bloqueado.
+    Al iniciar FastAPI: si el estado de sesión dice "running", matar el proceso
+    huérfano (si existe) y corregir a "error". Después de reiniciar la API no
+    tenemos referencia en memoria al subproceso, así que no podemos monitorearlo.
     """
     sess = read_session_status()
     if sess.get("state") != "running":
@@ -89,15 +105,21 @@ def recover_stale_session_status() -> None:
     pid = sess.get("pid")
     if pid:
         try:
-            os.kill(pid, 0)
-            return  # proceso sigue vivo
+            os.kill(pid, 0)  # comprobar si sigue vivo
+            logger.warning("[Session] Matando proceso huérfano %s de sesión anterior", pid)
+            os.kill(pid, signal.SIGTERM)
+            time.sleep(2)
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except (ProcessLookupError, PermissionError):
+                pass
         except (ProcessLookupError, PermissionError):
             pass
     sess["state"] = "error"
-    sess["last_error"] = "Proceso no encontrado al iniciar la API (posible crash anterior)"
+    sess["last_error"] = "Proceso de sesión anterior interrumpido al reiniciar la API"
     sess["finished_at"] = _now()
     _write_session_status(sess)
-    logger.warning("[Session] Estado zombie corregido: proceso %s no encontrado", pid)
+    logger.warning("[Session] Estado zombie corregido: proceso %s terminado", pid)
 
 
 def recover_stale_status() -> None:
@@ -133,10 +155,23 @@ def _get_log_handler() -> RotatingFileHandler:
     return handler
 
 
+async def _webflow_sync_bg() -> None:
+    """Ejecuta sync Webflow como tarea de fondo (fire-and-forget)."""
+    try:
+        from integrations.webflow_sync import sync_pending_listings
+        logger.info("[AUTO-SYNC] Iniciando sincronizacion Webflow en paralelo...")
+        result = await sync_pending_listings()
+        logger.info("[AUTO-SYNC] Webflow sync completado: %s", result)
+    except Exception as e:
+        logger.error("[AUTO-SYNC] Error en sync Webflow: %s", e)
+
+
 async def _monitor_proc(proc: asyncio.subprocess.Process) -> None:
     """Lee stdout del subproceso, parsea progreso y escribe en el log rotativo."""
     log_handler = _get_log_handler()
     status = read_status()
+    _last_sync_time: float = 0.0
+    _SYNC_DEBOUNCE_SECS = 60
 
     assert proc.stdout is not None
     async for raw_line in proc.stdout:
@@ -161,6 +196,11 @@ async def _monitor_proc(proc: asyncio.subprocess.Process) -> None:
             m = re.search(r"(\d+)\s*$", line)  # último número (evita capturar timestamp)
             if m:
                 status["total_new"] = int(m.group(1))
+                # Sync Webflow en paralelo (debounced)
+                now = time.monotonic()
+                if int(m.group(1)) > 0 and now - _last_sync_time >= _SYNC_DEBOUNCE_SECS:
+                    _last_sync_time = now
+                    asyncio.create_task(_webflow_sync_bg())
         elif "Duplicados" in line or "saltados" in line.lower():
             import re
             m = re.search(r"(\d+)\s*$", line)  # último número (evita capturar timestamp)
@@ -174,6 +214,10 @@ async def _monitor_proc(proc: asyncio.subprocess.Process) -> None:
             status["challenge_waiting"] = False
             status["needs_session_renewal"] = True
             status["last_error"] = line[:200]
+        elif "[WARMUP:nav_failed]" in line:
+            status["last_error"] = "Fallo de warmup: Chrome se quedó en about:blank. Reiniciando..."
+        elif "[WARMUP:complete]" in line:
+            status["last_error"] = None
         elif any(kw in line.lower() for kw in ("ban", "bloqueado", "f5/incapsula", "kasada", "save_session")):
             status["last_error"] = line[:200]
             status["needs_session_renewal"] = True
@@ -202,105 +246,9 @@ async def _monitor_proc(proc: asyncio.subprocess.Process) -> None:
     _write_status(status)
     logger.info("[Scraper] Proceso terminado con código %s → estado=%s", rc, status["state"])
 
-
-# ── Renovación de sesión ──────────────────────────────────────────────────────
-
-def _write_session_status(data: dict) -> None:
-    tmp = SESSION_STATUS_FILE.with_suffix(".tmp")
-    tmp.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
-    tmp.replace(SESSION_STATUS_FILE)
-
-
-def read_session_status() -> dict:
-    if not SESSION_STATUS_FILE.exists():
-        return {"state": "idle", "pid": None, "started_at": None, "finished_at": None, "last_error": None}
-    try:
-        return json.loads(SESSION_STATUS_FILE.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return {"state": "idle", "pid": None, "started_at": None, "finished_at": None, "last_error": None}
-
-
-async def _monitor_session_proc(proc: asyncio.subprocess.Process) -> None:
-    log_handler = _get_log_handler()
-    assert proc.stdout is not None
-    async for raw_line in proc.stdout:
-        line = raw_line.decode("utf-8", errors="replace").rstrip()
-        record = logging.LogRecord(
-            name="session", level=logging.INFO,
-            pathname="", lineno=0, msg=f"[SESSION] {line}",
-            args=(), exc_info=None,
-        )
-        log_handler.emit(record)
-        # Actualizar estado de espera de login
-        sess = read_session_status()
-        if "[LOGIN_WAITING]" in line:
-            sess["waiting_for_login"] = True
-        elif "Login detectado" in line or "login detectado" in line.lower():
-            sess["waiting_for_login"] = False
-            sess["login_detected"] = True
-        elif "Navegando a naves" in line or "naves industriales" in line.lower():
-            sess["navigating"] = True
-        elif "Sesion guardada" in line or "sesion guardada" in line.lower():
-            sess["waiting_for_login"] = False
-        _write_session_status(sess)
-    log_handler.close()
-
-    rc = await proc.wait()
-    sess = read_session_status()
-    sess["state"] = "idle" if rc == 0 else "error"
-    sess["finished_at"] = _now()
-    sess["waiting_for_login"] = False
-    sess["login_detected"] = False
-    sess["navigating"] = False
-    if rc != 0:
-        sess["last_error"] = f"save_session.py terminó con código {rc}"
-    _write_session_status(sess)
-
-    # Si terminó OK, limpiar flag needs_session_renewal del scraper
+    # Sync final de Webflow (por si quedan pendientes de la ultima pagina)
     if rc == 0:
-        status = read_status()
-        status["needs_session_renewal"] = False
-        status["last_error"] = None
-        _write_status(status)
-    logger.info("[Session] save_session.py terminó con código %s", rc)
-
-
-async def launch_session_renewal() -> bool:
-    """
-    Lanza save_session.py como subproceso para renovar la sesión de Milanuncios.
-    Abre Chrome en modo headful — el usuario debe interactuar con él.
-    Retorna False si ya está corriendo.
-    """
-    global _session_proc
-    async with _session_lock:
-        if _session_proc is not None and _session_proc.returncode is None:
-            return False
-
-        env = os.environ.copy()
-        env.setdefault("DISPLAY", ":1")
-
-        _write_session_status({
-            "state": "running",
-            "pid": None,
-            "started_at": _now(),
-            "finished_at": None,
-            "last_error": None,
-        })
-
-        _session_proc = await asyncio.create_subprocess_exec(
-            sys.executable, str(PROJECT_ROOT / "save_session.py"),
-            cwd=str(PROJECT_ROOT),
-            env=env,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.STDOUT,
-        )
-        sess = read_session_status()
-        sess["pid"] = _session_proc.pid
-        _write_session_status(sess)
-
-        logger.info("[Session] save_session.py lanzado PID %s", _session_proc.pid)
-        asyncio.create_task(_monitor_session_proc(_session_proc))
-        return True
+        asyncio.create_task(_webflow_sync_bg())
 
 
 # ── Lanzar / detener ──────────────────────────────────────────────────────────

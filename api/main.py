@@ -12,11 +12,14 @@ Endpoints:
   PUT  /api/cron
   POST /api/webflow/sync
   GET  /api/webflow/status
+  GET  /api/vnc/status
 """
 import asyncio
 import collections
+import hmac
 import logging
 import math
+import os
 import sqlite3
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -28,12 +31,11 @@ from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from api.dependencies import DB_PATH, get_config, get_db, save_config, verify_api_key
+from api.dependencies import API_SECRET_KEY, DASHBOARD_PASSWORD, DB_PATH, get_config, get_db, save_config, verify_api_key
 from api.scraper_job import (
-    launch_scraper, launch_session_renewal,
-    read_status, read_session_status,
-    recover_stale_status, recover_stale_session_status, stop_scraper,
+    launch_scraper, read_status, recover_stale_status, recover_stale_session_status, stop_scraper,
 )
+from api.session_job import launch_session_renewal, read_session_status, stop_session_renewal
 from db import get_listings_paginated, init_db
 
 logger = logging.getLogger(__name__)
@@ -94,6 +96,19 @@ class ScrapeRunRequest(BaseModel):
     max_pages: int = 0
     dry_run: bool = False
     reset: bool = False
+
+
+class LoginRequest(BaseModel):
+    password: str
+
+
+# ── Auth ──────────────────────────────────────────────────────────────────────
+
+@app.post("/api/auth/login", tags=["auth"])
+async def auth_login(body: LoginRequest):
+    if not DASHBOARD_PASSWORD or not hmac.compare_digest(body.password, DASHBOARD_PASSWORD):
+        raise HTTPException(status_code=401, detail="Credenciales incorrectas")
+    return {"api_key": API_SECRET_KEY}
 
 
 # ── Health ────────────────────────────────────────────────────────────────────
@@ -236,9 +251,26 @@ async def session_renew():
     return {"status": "iniciado", "message": "save_session.py abierto — interactúa con Chrome para completar el login"}
 
 
+@app.post("/api/session/stop", dependencies=[Depends(verify_api_key)], tags=["sesion"])
+async def session_stop():
+    stopped = await stop_session_renewal()
+    if not stopped:
+        raise HTTPException(status_code=409, detail="No hay renovación de sesión en curso")
+    return {"status": "cancelado"}
+
+
 @app.get("/api/session/status", dependencies=[Depends(verify_api_key)], tags=["sesion"])
 async def session_status():
     return read_session_status()
+
+
+# ── VNC (panel Chrome remoto) ────────────────────────────────────────────────
+
+@app.get("/api/vnc/status", dependencies=[Depends(verify_api_key)], tags=["vnc"])
+async def vnc_status():
+    """Indica si el panel VNC esta disponible y en que puerto WebSocket."""
+    available = os.environ.get("VNC_AVAILABLE", "false") == "true"
+    return {"available": available, "ws_port": 6080 if available else None}
 
 
 # ── Webflow ───────────────────────────────────────────────────────────────────
