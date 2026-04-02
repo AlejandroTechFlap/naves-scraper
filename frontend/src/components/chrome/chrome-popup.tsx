@@ -60,17 +60,7 @@ export function ChromePopup({ open, onOpenChange, wsPort }: ChromePopupProps) {
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
-        style={{
-          position: "fixed",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          width: "90vw",
-          height: "90vh",
-          maxWidth: "90vw",
-          borderRadius: "0.75rem",
-        }}
-        className="z-50 flex flex-col gap-0 border shadow-2xl ring-1 ring-black/10 p-0 overflow-hidden"
+        className="!fixed !top-1/2 !left-1/2 !-translate-x-1/2 !-translate-y-1/2 !w-[95vw] !h-[95vh] !max-w-[95vw] z-50 flex flex-col gap-0 border shadow-2xl ring-1 ring-black/10 p-0 overflow-hidden rounded-xl bg-popover"
         showCloseButton={false}
       >
         <div className="flex items-center justify-between border-b bg-background px-4 py-2 rounded-t-xl">
