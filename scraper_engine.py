@@ -11,8 +11,10 @@ import argparse
 import asyncio
 import logging
 import os
+import re
 import signal
 import sys
+import unicodedata
 from pathlib import Path
 
 import requests
@@ -66,6 +68,21 @@ DOWNLOAD_IMAGES = os.getenv("DOWNLOAD_IMAGES", "true").lower() == "true"
 IMAGES_DIR = os.getenv("IMAGES_DIR", "images")
 
 
+def _slugify_title(title: str | None, listing_id: str) -> str:
+    """Generate an SEO-friendly slug from the listing title."""
+    text = title.strip() if title else ""
+    if not text:
+        return f"listing-{listing_id}"
+    # Transliterate unicode accents (á→a, ñ→n, etc.)
+    text = unicodedata.normalize("NFKD", text)
+    text = text.encode("ascii", "ignore").decode("ascii")
+    text = text.lower()
+    text = re.sub(r"[^a-z0-9]+", "-", text)
+    text = text.strip("-")
+    text = re.sub(r"-{2,}", "-", text)
+    return text[:80].rstrip("-")
+
+
 def _download_one_image(url: str, dest: Path) -> bool:
     """Descarga una imagen y la guarda en dest. Devuelve True si tuvo éxito."""
     try:
@@ -78,23 +95,25 @@ def _download_one_image(url: str, dest: Path) -> bool:
         return False
 
 
-async def download_images(conn, listing_id: str, photo_urls: list) -> None:
-    """Descarga todas las imágenes de un anuncio y actualiza la BD."""
+async def download_images(
+    conn, listing_id: str, photo_urls: list, title: str | None = None,
+) -> None:
+    """Download all images for a listing with SEO-friendly filenames."""
     if not photo_urls:
         return
     folder = Path(IMAGES_DIR) / listing_id
     folder.mkdir(parents=True, exist_ok=True)
 
+    slug = _slugify_title(title, listing_id)
     local_paths = []
     for i, url in enumerate(photo_urls, start=1):
-        # Determinar extensión desde URL o usar jpg por defecto
         ext = "jpg"
         url_path = url.split("?")[0]
         if "." in url_path.split("/")[-1]:
             ext = url_path.rsplit(".", 1)[-1].lower()
             if ext not in ("jpg", "jpeg", "png", "webp", "gif"):
                 ext = "jpg"
-        dest = folder / f"{i:02d}.{ext}"
+        dest = folder / f"{slug}-image-{i}.{ext}"
         ok = await asyncio.to_thread(_download_one_image, url, dest)
         if ok:
             local_paths.append(str(dest))
@@ -252,7 +271,7 @@ async def run(
                             "inserted",
                         )
                         if DOWNLOAD_IMAGES and data.get("photos"):
-                            await download_images(conn, listing_id, data["photos"])
+                            await download_images(conn, listing_id, data["photos"], data.get("title"))
                         if batch_size and total_new >= batch_size:
                             logger.info(f"[Batch] Límite de {batch_size} anuncios alcanzado.")
                             stop_pagination = True
